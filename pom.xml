@@ -49,6 +49,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Spring Boot DevTools for hot reload -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

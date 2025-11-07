@@ -33,7 +33,7 @@ public class ElasticsearchConfig extends ElasticsearchConfiguration {
     @Override
     public ClientConfiguration clientConfiguration() {
         String[] hosts = Arrays.stream(uris.split(","))
-                .map(uri -> uri.replace("https://", "").replace("http://", "").trim())
+                .map(this::stripScheme)
                 .toArray(String[]::new);
         
         ClientConfiguration.MaybeSecureClientConfigurationBuilder builder = ClientConfiguration.builder()
@@ -82,6 +82,10 @@ public class ElasticsearchConfig extends ElasticsearchConfiguration {
         }
         
         return builder.withBasicAuth(username, password).build();
+    }
+
+    private String stripScheme(String uri) {
+        return uri.replace("https://", "").replace("http://", "").trim();
     }
 }
 

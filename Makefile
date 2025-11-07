@@ -1,20 +1,123 @@
-.PHONY: help es-start es-stop es-logs es-get-cert es-get-password es-status
+.DEFAULT_GOAL := help
 
-# Elasticsearch container name
+# ============================================================================
+# Variables
+# ============================================================================
+
+# Application variables
+DEBUG_PORT := 8787
+MVN_DEBUG_OPTS := -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=$(DEBUG_PORT)
+ARTIFACT_ID := $(shell mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
+VERSION := $(shell mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+JAR_FILE := target/${ARTIFACT_ID}-${VERSION}.jar
+
+# Elasticsearch variables
 ES_CONTAINER_NAME := elasticsearch
 ES_NETWORK := elastic-network
 ES_PASSWORD_FILE := .es_password
 ES_CERT_DIR := es-certs
 
+# ============================================================================
+# Phony targets
+# ============================================================================
+
+.PHONY: help clean build run-dev run-debug run-jar stop-dev stop-jar status-dev status-jar test
+.PHONY: es-start es-stop es-logs es-status es-get-cert es-get-password es-setup es-clean
+
+# ============================================================================
+# Help
+# ============================================================================
+
 help:
 	@echo "Available targets:"
+	@echo ""
+	@echo "Application targets:"
+	@echo "  clean           - Clean up the project"
+	@echo "  build           - Build the application"
+	@echo "  run-dev         - Run the application with hot reload (DevTools)"
+	@echo "  run-debug       - Run the application in debug mode"
+	@echo "  run-jar         - Run the application from JAR file"
+	@echo "  stop-dev        - Stop the development server"
+	@echo "  stop-jar        - Stop the JAR application"
+	@echo "  status-dev      - Check if development server is running"
+	@echo "  status-jar      - Check if JAR application is running"
+	@echo "  test            - Run tests"
+	@echo ""
+	@echo "Elasticsearch targets:"
 	@echo "  es-start        - Start Elasticsearch Docker container"
 	@echo "  es-stop         - Stop Elasticsearch Docker container"
 	@echo "  es-logs         - Show Elasticsearch container logs"
+	@echo "  es-status       - Check Elasticsearch container status"
 	@echo "  es-get-cert     - Extract certificate from container to es-certs/"
 	@echo "  es-get-password - Extract password from container to .es_password"
-	@echo "  es-status       - Check Elasticsearch container status"
 	@echo "  es-setup        - Complete setup: start ES, get cert and password"
+	@echo "  es-clean        - Remove Elasticsearch container, network, and files"
+
+# ============================================================================
+# Application targets
+# ============================================================================
+
+clean:
+	@echo "Cleaning up..."
+	@mvn clean
+	@rm -rf es-certs/ .es_password
+	@echo "Cleanup complete."
+
+build:
+	@echo "Building the application..."
+	@mvn package
+	@echo "Build complete."
+
+run-dev:
+	@echo "Running the application with hot reload (DevTools enabled)..."
+	@echo "Changes to Java files will trigger automatic restart."
+	@mvn spring-boot:run
+	@echo "Application started."
+
+run-debug:
+	@echo "Running the application in debug mode..."
+	@mvn spring-boot:run -Dspring-boot.run.jvmArguments="$(MVN_DEBUG_OPTS)"
+	@echo "Application started."
+
+run-jar:
+	@echo "Running the application from JAR file..."
+	@java -jar $(JAR_FILE)
+	@echo "Application started in background. Use 'make stop-jar' to stop it."
+
+stop-dev:
+	@echo "Stopping development server..."
+	@pkill -f "spring-boot:run" || echo "No development server process found."
+
+stop-jar:
+	@echo "Stopping JAR application..."
+	@pkill -f "$(ARTIFACT_ID).*\.jar" || echo "No JAR application process found."
+
+status-dev:
+	@echo "Checking development server status..."
+	@if pgrep -f "spring-boot:run" > /dev/null; then \
+		echo "✓ Development server is running"; \
+		ps aux | grep -E "[s]pring-boot:run" | head -1; \
+	else \
+		echo "✗ Development server is not running"; \
+	fi
+
+status-jar:
+	@echo "Checking JAR application status..."
+	@if pgrep -f "$(ARTIFACT_ID).*\.jar" > /dev/null; then \
+		echo "✓ JAR application is running"; \
+		ps aux | grep -E "[j]ava.*$(ARTIFACT_ID).*\.jar" | head -1; \
+	else \
+		echo "✗ JAR application is not running"; \
+	fi
+
+test:
+	@echo "Running tests..."
+	@mvn test
+	@echo "Tests complete."
+
+# ============================================================================
+# Elasticsearch targets
+# ============================================================================
 
 es-start:
 	@echo "Starting Elasticsearch container..."
