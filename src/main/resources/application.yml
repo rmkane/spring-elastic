@@ -8,9 +8,6 @@ spring:
       password: ${ES_PASSWORD:}
       connection-timeout: 10s
       socket-timeout: 60s
-      ssl:
-        certificate-authorities: ${ES_CERT_PATH:}
-        verification-mode: ${ES_SSL_VERIFICATION_MODE:full}
 
 server:
   port: 8080

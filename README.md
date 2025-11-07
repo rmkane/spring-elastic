@@ -33,6 +33,8 @@ This will:
 
 ### 2. Set Environment Variables
 
+**Important:** You must set these environment variables before running the application.
+
 After running `make es-setup`, set the environment variables:
 
 ```bash
@@ -42,6 +44,8 @@ export ES_URIS=https://localhost:9200
 export ES_USERNAME=elastic
 ```
 
+**Note:** Make sure `ES_CERT_PATH` points to the actual certificate file. The application requires these environment variables to connect to Elasticsearch over HTTPS.
+
 ### 3. Run the Application
 
 ```bash
@@ -50,10 +54,44 @@ mvn spring-boot:run
 
 ### 4. Upload a File
 
+You can upload any file using curl:
+
 ```bash
 curl -X POST http://localhost:8080/api/documents/upload \
   -F "file=@/path/to/your/file.txt"
 ```
+
+**Test Files:** The `data/` directory contains sample test documents you can use:
+
+```bash
+# Upload sample text files
+curl -X POST http://localhost:8080/api/documents/upload \
+  -F "file=@data/sample1.txt"
+
+curl -X POST http://localhost:8080/api/documents/upload \
+  -F "file=@data/sample2.txt"
+
+# Upload other formats
+curl -X POST http://localhost:8080/api/documents/upload \
+  -F "file=@data/sample.json"
+
+curl -X POST http://localhost:8080/api/documents/upload \
+  -F "file=@data/technical-doc.md"
+```
+
+**Example with verbose output:**
+
+```bash
+curl -v -X POST http://localhost:8080/api/documents/upload \
+  -F "file=@data/sample1.txt"
+```
+
+**Expected response** (on success):
+
+- Status: `201 Created`
+- Body: JSON with document details (id, fileName, content, fileSize, contentType, uploadedAt)
+
+**Note:** Make sure the Spring Boot application is running before executing these commands.
 
 ## Makefile Commands
 
@@ -148,6 +186,13 @@ Documents are stored in indexes named `documents-YYYY-MM-DD` where the date is t
 
 ```none
 spring-elastic/
+├── data/
+│   ├── README.md
+│   ├── sample1.txt
+│   ├── sample2.txt
+│   ├── lorem-ipsum.txt
+│   ├── sample.json
+│   └── technical-doc.md
 ├── scripts/
 │   ├── check-health.sh
 │   ├── check-index.sh

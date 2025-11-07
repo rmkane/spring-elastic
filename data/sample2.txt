@@ -1,0 +1,13 @@
+Sample Document 2
+
+This is another test document with different content.
+
+It demonstrates how the application handles multiple file uploads.
+
+Key features:
+- File upload endpoint
+- Elasticsearch indexing
+- Weekly index naming based on the first day of the week
+
+This document can be used to verify that documents are properly stored and indexed.
+

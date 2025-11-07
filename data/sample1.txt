@@ -1,0 +1,11 @@
+This is a sample test document for the Spring Elastic application.
+
+It contains some sample text that can be used to test the file upload functionality.
+
+The document includes:
+- Multiple lines of text
+- Various words and phrases
+- Sample content for indexing in Elasticsearch
+
+This document was created on 2024-11-06 for testing purposes.
+

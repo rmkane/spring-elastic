@@ -1,0 +1,14 @@
+JSON Sample Data
+
+{
+  "title": "Test Document",
+  "content": "This is a sample JSON-like document",
+  "metadata": {
+    "author": "Test User",
+    "date": "2024-11-06",
+    "type": "test"
+  },
+  "tags": ["test", "sample", "elasticsearch"],
+  "description": "A sample document for testing file upload functionality"
+}
+
