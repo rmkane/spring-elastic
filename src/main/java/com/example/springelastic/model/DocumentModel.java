@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(indexName = "documents")
+@Document(indexName = "#{T(java.time.LocalDate).now().with(T(java.time.DayOfWeek).MONDAY).format(T(java.time.format.DateTimeFormatter).ofPattern('yyyyMMdd'))}")
 public class DocumentModel {
     
     @Id
