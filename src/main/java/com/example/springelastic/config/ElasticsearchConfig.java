@@ -1,19 +1,25 @@
 package com.example.springelastic.config;
 
+import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.KeyStore;
+import java.security.SecureRandom;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.elasticsearch.client.ClientConfiguration;
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchConfiguration;
 import org.springframework.util.StringUtils;
-
-import javax.net.ssl.SSLContext;
-import java.io.FileInputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateFactory;
-import java.util.Arrays;
 
 @Configuration
 public class ElasticsearchConfig extends ElasticsearchConfiguration {
@@ -29,7 +35,7 @@ public class ElasticsearchConfig extends ElasticsearchConfiguration {
     
     @Value("${ES_CERT_PATH:}")
     private String certificatePath;
-    
+
     @Override
     public ClientConfiguration clientConfiguration() {
         String[] hosts = Arrays.stream(uris.split(","))
@@ -54,8 +60,8 @@ public class ElasticsearchConfig extends ElasticsearchConfiguration {
                         trustStore.load(null, null);
                         trustStore.setCertificateEntry("ca", cert);
                         
-                        javax.net.ssl.TrustManagerFactory tmf = javax.net.ssl.TrustManagerFactory.getInstance(
-                            javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+                        TrustManagerFactory tmf = TrustManagerFactory.getInstance(
+                            TrustManagerFactory.getDefaultAlgorithm());
                         tmf.init(trustStore);
                         
                         sslContext = SSLContext.getInstance("TLS");
@@ -64,13 +70,13 @@ public class ElasticsearchConfig extends ElasticsearchConfiguration {
                 } else {
                     // Trust all certificates (for development)
                     sslContext = SSLContext.getInstance("TLS");
-                    sslContext.init(null, new javax.net.ssl.TrustManager[]{
-                        new javax.net.ssl.X509TrustManager() {
-                            public java.security.cert.X509Certificate[] getAcceptedIssuers() { return null; }
-                            public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) { }
-                            public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) { }
+                    sslContext.init(null, new TrustManager[]{
+                        new X509TrustManager() {
+                            public X509Certificate[] getAcceptedIssuers() { return null; }
+                            public void checkClientTrusted(X509Certificate[] certs, String authType) { }
+                            public void checkServerTrusted(X509Certificate[] certs, String authType) { }
                         }
-                    }, new java.security.SecureRandom());
+                    }, new SecureRandom());
                 }
                 
                 return builder.usingSsl(sslContext)

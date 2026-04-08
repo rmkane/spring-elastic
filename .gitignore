@@ -36,3 +36,5 @@ build/
 .es_password
 es-certs/
 
+### Application logs ###
+logs/

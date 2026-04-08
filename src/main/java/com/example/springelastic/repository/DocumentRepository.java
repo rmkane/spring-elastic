@@ -1,10 +1,10 @@
 package com.example.springelastic.repository;
 
-import com.example.springelastic.model.DocumentModel;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 import org.springframework.stereotype.Repository;
 
+import com.example.springelastic.model.DocumentModel;
+
 @Repository
-public interface DocumentRepository extends ElasticsearchRepository<DocumentModel, String> {
-}
+public interface DocumentRepository extends ElasticsearchRepository<DocumentModel, String> {}
 

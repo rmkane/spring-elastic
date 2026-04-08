@@ -43,9 +43,9 @@ help:
 	@echo "  status-jar      - Check if JAR application is running"
 	@echo "  test            - Run tests"
 	@echo ""
-	@echo "Elasticsearch targets:"
-	@echo "  es-start        - Start Elasticsearch Docker container"
-	@echo "  es-stop         - Stop Elasticsearch Docker container"
+	@echo "Elasticsearch targets (Docker Compose: docker-compose.yml):"
+	@echo "  es-start        - Start Elasticsearch (docker compose up -d)"
+	@echo "  es-stop         - Stop Elasticsearch (docker compose stop)"
 	@echo "  es-logs         - Show Elasticsearch container logs"
 	@echo "  es-status       - Check Elasticsearch container status"
 	@echo "  es-get-cert     - Extract certificate from container to es-certs/"
@@ -120,22 +120,8 @@ test:
 # ============================================================================
 
 es-start:
-	@echo "Starting Elasticsearch container..."
-	@docker network create $(ES_NETWORK) 2>/dev/null || true
-	@if docker ps -a | grep -q $(ES_CONTAINER_NAME); then \
-		echo "Container exists, starting it..."; \
-		docker start $(ES_CONTAINER_NAME); \
-	else \
-		echo "Creating new container..."; \
-		docker run -d \
-			--name $(ES_CONTAINER_NAME) \
-			--network $(ES_NETWORK) \
-			-p 9200:9200 \
-			-p 9300:9300 \
-			-e "discovery.type=single-node" \
-			-e "ELASTIC_PASSWORD=$$(openssl rand -base64 32 | tr -d '\n')" \
-			docker.elastic.co/elasticsearch/elasticsearch:8.11.0; \
-	fi
+	@echo "Starting Elasticsearch with Docker Compose..."
+	@docker compose up -d
 	@echo "Waiting for Elasticsearch to be ready..."
 	@timeout=120; \
 	while [ $$timeout -gt 0 ]; do \
@@ -154,9 +140,9 @@ es-start:
 	@echo "Run 'make es-setup' to get cert and password."
 
 es-stop:
-	@echo "Stopping Elasticsearch container..."
-	@docker stop $(ES_CONTAINER_NAME) || true
-	@echo "Elasticsearch container stopped."
+	@echo "Stopping Elasticsearch..."
+	@docker compose stop
+	@echo "Elasticsearch stopped."
 
 es-logs:
 	@docker logs -f $(ES_CONTAINER_NAME)
@@ -235,7 +221,8 @@ es-setup: es-start
 	@echo "=========================================="
 
 es-clean:
-	@echo "Removing Elasticsearch container and network..."
+	@echo "Removing Elasticsearch stack..."
+	@docker compose down 2>/dev/null || true
 	@docker stop $(ES_CONTAINER_NAME) 2>/dev/null || true
 	@docker rm $(ES_CONTAINER_NAME) 2>/dev/null || true
 	@docker network rm $(ES_NETWORK) 2>/dev/null || true

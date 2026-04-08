@@ -1,0 +1,17 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.13
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      # Override in .env or export ELASTIC_PASSWORD=... (default is dev-only)
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - elastic-network
+
+networks:
+  elastic-network:
+    name: elastic-network

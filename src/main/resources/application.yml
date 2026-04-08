@@ -14,6 +14,7 @@ server:
 
 logging:
   level:
+    com.example.springelastic: DEBUG
     org.springframework.data.elasticsearch: DEBUG
     org.elasticsearch: INFO
 
