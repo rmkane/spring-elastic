@@ -1,219 +1,183 @@
 # Spring Elastic Application
 
-A Spring Boot application that accepts file uploads and stores them in Elasticsearch with weekly-based index naming.
+Spring Boot service that uploads files to **Elasticsearch** over HTTPS, using a **weekly index** name. Includes **OpenAPI (Swagger UI)**, **Logback** (console + daily rolling files under `logs/`), and **Makefile / Docker Compose** helpers for local Elasticsearch.
 
 ## Features
 
-- File upload endpoint that accepts multipart files
-- Automatic index creation based on the first day of the current week (format: `documents-YYYY-MM-DD`)
-- Elasticsearch integration with SSL/TLS support
-- Docker-based Elasticsearch setup via Makefile
+- **REST API** — upload, list, get by id, batch get, search by file name and/or content type, purge current week’s index
+- **Weekly index** — index name is the Monday of the current week in `yyyyMMdd` form (e.g. `20260407`)
+- **TLS** — optional CA via `ES_CERT_PATH`; otherwise the client trusts all certs in dev (see `ElasticsearchConfig`)
+- **Spring Data Elasticsearch** — `DocumentModel` uses `Instant` for `uploadedAt`, keyword subfields for search
+- **Springdoc OpenAPI** — interactive API docs in the browser
+- **Utilities** — `StringHelper`, `ContentTypeHelper` (unit-tested)
 
 ## Prerequisites
 
-- Java 17 or higher
-- Maven 3.6+
-- Docker and Docker Compose
-- Make
+- **Java 21** (see `pom.xml`)
+- **Maven 3.9+**
+- **Docker** and **Docker Compose** (for local Elasticsearch)
+- **Make** (optional, for convenience targets)
 
-## Quick Start
+## Quick start
 
 ### 1. Start Elasticsearch
+
+Either use Make (wraps Docker Compose):
 
 ```bash
 make es-setup
 ```
 
-This will:
+That starts Elasticsearch, waits until it is ready, then writes **`es-certs/ca.crt`** and **`.es_password`** when applicable.
 
-- Start an Elasticsearch Docker container
-- Extract the SSL certificate
-- Extract the password
-- Display the environment variables you need to set
-
-### 2. Set Environment Variables
-
-**Important:** You must set these environment variables before running the application.
-
-After running `make es-setup`, set the environment variables:
+Or start Compose yourself:
 
 ```bash
-export ES_PASSWORD=$(cat .es_password)
-export ES_CERT_PATH=$(pwd)/es-certs/ca.crt
-export ES_URIS=https://localhost:9200
-export ES_USERNAME=elastic
+docker compose up -d
 ```
 
-**Note:** Make sure `ES_CERT_PATH` points to the actual certificate file. The application requires these environment variables to connect to Elasticsearch over HTTPS.
+With the default `docker-compose.yml`, the bootstrap password is often **`changeme`** unless you set **`ELASTIC_PASSWORD`** in a `.env` file.
 
-### 3. Run the Application
+### 2. Environment variables
+
+Set these before running the app (HTTPS to Elasticsearch):
+
+```bash
+export ES_URIS=https://localhost:9200
+export ES_USERNAME=elastic
+export ES_PASSWORD=changeme   # or: export ES_PASSWORD=$(cat .es_password)
+export ES_CERT_PATH="$(pwd)/es-certs/ca.crt"
+```
+
+If **`ES_CERT_PATH`** is missing or the file does not exist, the app uses a **trust-all** SSL context for development only.
+
+### 3. Run the application
 
 ```bash
 mvn spring-boot:run
+# or
+make run-dev
 ```
 
-### 4. Upload a File
+Default HTTP port: **8080**.
 
-You can upload any file using curl:
+### 4. OpenAPI (Swagger UI)
+
+With the app running:
+
+- [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+
+Use this to try multipart upload and the GET endpoints.
+
+### 5. Upload a file
+
+Run **`curl` from the repository root** so paths like `data/...` resolve, or use absolute paths.
 
 ```bash
 curl -X POST http://localhost:8080/api/documents/upload \
-  -F "file=@/path/to/your/file.txt"
-```
-
-**Test Files:** The `data/` directory contains sample test documents you can use:
-
-```bash
-# Upload sample text files
-curl -X POST http://localhost:8080/api/documents/upload \
-  -F "file=@data/sample1.txt"
-
-curl -X POST http://localhost:8080/api/documents/upload \
-  -F "file=@data/sample2.txt"
-
-# Upload other formats
-curl -X POST http://localhost:8080/api/documents/upload \
-  -F "file=@data/sample.json"
-
-curl -X POST http://localhost:8080/api/documents/upload \
-  -F "file=@data/technical-doc.md"
-```
-
-**Example with verbose output:**
-
-```bash
-curl -v -X POST http://localhost:8080/api/documents/upload \
   -F "file=@data/sample1.txt"
 ```
 
-**Expected response** (on success):
+Sample files live under **`data/`** (`sample.json`, `sample2.txt`, etc.). See **`data/README.md`**.
 
-- Status: `201 Created`
-- Body: JSON with document details (id, fileName, content, fileSize, contentType, uploadedAt)
+**Success:** `201 Created` with JSON including `id`, `fileName`, `content`, `fileSize`, `contentType`, `uploadedAt` (ISO-8601 instant).
 
-**Note:** Make sure the Spring Boot application is running before executing these commands.
+## API summary
 
-## Makefile Commands
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| `GET` | `/api/documents` | List documents in the **current week’s** index (empty list if index missing) |
+| `GET` | `/api/documents/{id}` | Get one document by id (`404` if missing) |
+| `GET` | `/api/documents/by-ids?ids=id1,id2` | Batch get (unknown ids omitted) |
+| `GET` | `/api/documents/search` | Query params: `fileName` and/or `contentType` (substring match on **`.keyword`** fields) |
+| `DELETE` | `/api/documents/index` | Delete the **current week’s** index only |
+| `POST` | `/api/documents/upload` | Multipart field **`file`** |
 
-- `make es-start` - Start Elasticsearch container
-- `make es-stop` - Stop Elasticsearch container
-- `make es-logs` - View Elasticsearch logs
-- `make es-get-cert` - Extract certificate from container
-- `make es-get-password` - Extract password from container
-- `make es-setup` - Complete setup (start, get cert, get password)
-- `make es-status` - Check container status
-- `make es-clean` - Remove container and cleanup files
+Search requires at least one of **`fileName`** or **`contentType`**. Purge is destructive and unprotected — fine for local dev only.
+
+## Index naming
+
+The index name is **not** `documents-…`. It is computed from the **Monday of the current week** in **`yyyyMMdd`** format, for example:
+
+- Week starting Monday 2026-04-06 → index **`20260406`**
+
+Older weeks remain as separate indices until you remove them in Elasticsearch. **`GET /api/documents`** only reads the **current** week’s index.
+
+After changing mappings (e.g. adding keyword fields), **purge the current index** or wait for a new week’s index, then re-upload.
+
+## Makefile commands
+
+### Application
+
+- `make run-dev` — Spring Boot with DevTools
+- `make test` — `mvn test`
+- `make build`, `make clean`, etc. — see `make help`
+
+### Elasticsearch (Docker Compose)
+
+- `make es-start` / `make es-stop` — start or stop the stack
+- `make es-setup` — start, wait, extract cert and password
+- `make es-get-cert`, `make es-get-password`, `make es-logs`, `make es-status`, `make es-clean`
 
 ## Scripts
 
-The `scripts/` directory contains utility scripts for checking Elasticsearch:
+Shell helpers (run from repo root; use **`ES_PASSWORD`** or **`.es_password`**; **`ES_CERT_PATH`** or `curl -k` behavior as implemented in each script):
 
-### check-health.sh
+- **`scripts/list-indices.sh`** — list indices (`-v` for table view)
+- **`scripts/check-index.sh <index-name>`** — index info, optional `--stats`, `--mapping`, `--all`
+- **`scripts/check-health.sh`** — cluster health
 
-Check Elasticsearch cluster health.
-
-```bash
-./scripts/check-health.sh
-```
-
-### list-indices.sh
-
-List all Elasticsearch indices.
+Example (index name matches your current week):
 
 ```bash
-# Simple list
 ./scripts/list-indices.sh
-
-# Verbose output (table format)
-./scripts/list-indices.sh --verbose
+./scripts/check-index.sh 20260406 --all
 ```
 
-### check-index.sh
-
-Check a specific index. Shows index information, document count, and optionally statistics and mapping.
-
-```bash
-# Basic index information
-./scripts/check-index.sh documents-2024-01-08
-
-# Show statistics
-./scripts/check-index.sh documents-2024-01-08 --stats
-
-# Show mapping
-./scripts/check-index.sh documents-2024-01-08 --mapping
-
-# Show all information
-./scripts/check-index.sh documents-2024-01-08 --all
-```
-
-**Note:** All scripts automatically use environment variables (`ES_URIS`, `ES_USERNAME`, `ES_PASSWORD`, `ES_CERT_PATH`) or read from `.es_password` and `es-certs/ca.crt` if available.
-
-## API Endpoints
-
-### POST /api/documents/upload
-
-Upload a file to Elasticsearch.
-
-**Request:**
-
-- Method: POST
-- Content-Type: multipart/form-data
-- Parameter: `file` (MultipartFile)
-
-**Response:**
-
-- 201 Created: Document saved successfully
-- 400 Bad Request: Empty file
-- 500 Internal Server Error: Processing error
+Use the index name that matches **your** current week (see **Index naming** above), or read it from `list-indices.sh` output.
 
 ## Configuration
 
-Environment variables:
+| Variable | Purpose | Default |
+| -------- | ------- | ------- |
+| `ES_URIS` | Elasticsearch URLs | `https://localhost:9200` |
+| `ES_USERNAME` | Basic auth user | `elastic` |
+| `ES_PASSWORD` | Basic auth password | (empty in `application.yml`; required in practice) |
+| `ES_CERT_PATH` | PEM CA for TLS verify | (empty → trust-all in dev) |
+| `LOG_PATH` | Logback file directory | `logs` |
+| `LOG_FILE_NAME` | Log file base name | `spring-elastic` |
+| `LOG_APP_LEVEL` | Log level for `com.example.springelastic` | `INFO` |
 
-- `ES_URIS` - Elasticsearch URIs (default: `https://localhost:9200`)
-- `ES_USERNAME` - Elasticsearch username (default: `elastic`)
-- `ES_PASSWORD` - Elasticsearch password (required)
-- `ES_CERT_PATH` - Path to CA certificate file (required for SSL)
-- `ES_SSL_VERIFICATION_MODE` - SSL verification mode (default: `full`)
+Application config: **`src/main/resources/application.yml`**. Logging: **`logback-spring.xml`** (console + daily rollover under **`logs/`**; that directory is gitignored).
 
-## Index Naming
+## Tests
 
-Documents are stored in indexes named `documents-YYYY-MM-DD` where the date is the Monday of the current week. For example:
+```bash
+mvn test
+```
 
-- If today is Wednesday, January 10, 2024, the index will be `documents-2024-01-08` (the Monday of that week)
+Includes tests for **`StringHelper`** and **`ContentTypeHelper`**.
 
-## Project Structure
+## Project structure
 
 ```none
 spring-elastic/
-├── data/
-│   ├── README.md
-│   ├── sample1.txt
-│   ├── sample2.txt
-│   ├── lorem-ipsum.txt
-│   ├── sample.json
-│   └── technical-doc.md
-├── scripts/
-│   ├── check-health.sh
-│   ├── check-index.sh
-│   └── list-indices.sh
-├── src/
-│   ├── main/
-│   │   ├── java/com/example/springelastic/
-│   │   │   ├── config/
-│   │   │   │   ├── ElasticsearchConfig.java
-│   │   │   │   └── IndexNameProvider.java
-│   │   │   ├── controller/
-│   │   │   │   └── DocumentController.java
-│   │   │   ├── model/
-│   │   │   │   └── DocumentModel.java
-│   │   │   ├── repository/
-│   │   │   │   └── DocumentRepository.java
-│   │   │   ├── service/
-│   │   │   │   └── DocumentService.java
-│   │   │   └── SpringElasticApplication.java
-│   │   └── resources/
-│   │       └── application.yml
+├── data/                    # sample files for manual upload tests
+├── docker-compose.yml       # local Elasticsearch
+├── logs/                    # runtime logs (gitignored)
+├── scripts/                 # curl helpers for Elasticsearch
+├── src/main/java/com/example/springelastic/
+│   ├── config/              # Elasticsearch client + SSL, custom conversions
+│   ├── controller/          # DocumentController
+│   ├── convert/             # Instant read/write for ES dates
+│   ├── model/               # DocumentModel
+│   ├── repository/
+│   ├── service/             # DocumentService
+│   └── util/                # StringHelper, ContentTypeHelper
+├── src/main/resources/
+│   ├── application.yml
+│   └── logback-spring.xml
+├── src/test/java/.../util/  # util unit tests
 ├── Makefile
 ├── pom.xml
 └── README.md
