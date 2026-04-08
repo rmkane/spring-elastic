@@ -3,6 +3,7 @@ package com.example.springelastic.controller;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.springelastic.model.DocumentModel;
 import com.example.springelastic.service.DocumentService;
+import com.example.springelastic.util.StringHelper;
 
 @Slf4j
 @RestController
@@ -60,8 +62,8 @@ public class DocumentController {
             @Parameter(description = "Comma-separated Elasticsearch document ids", example = "uuid1,uuid2")
             @RequestParam String ids) {
         List<String> idList = Arrays.stream(ids.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
+                .map(StringHelper::trimToNull)
+                .filter(Objects::nonNull)
                 .toList();
         if (idList.isEmpty()) {
             log.warn("Action: get by ids rejected, empty id list");
@@ -87,20 +89,18 @@ public class DocumentController {
             @RequestParam(required = false) String fileName,
             @Parameter(description = "Substring of Content-Type (e.g. text or json)", example = "text/plain")
             @RequestParam(required = false) String contentType) {
-        boolean hasName = fileName != null && !fileName.isBlank();
-        boolean hasType = contentType != null && !contentType.isBlank();
-        if (!hasName && !hasType) {
+        String nameFragment = StringHelper.trimToNull(fileName);
+        String typeFragment = StringHelper.trimToNull(contentType);
+        if (nameFragment == null && typeFragment == null) {
             log.warn("Action: search rejected, missing fileName and contentType");
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Provide fileName and/or contentType query parameter");
         }
         log.info(
                 "Action: search documents, fileNameFragment={}, contentTypeFragment={}",
-                hasName ? fileName.trim() : null,
-                hasType ? contentType.trim() : null);
-        return documentService.search(
-                hasName ? fileName.trim() : null,
-                hasType ? contentType.trim() : null);
+                nameFragment,
+                typeFragment);
+        return documentService.search(nameFragment, typeFragment);
     }
     
     @Operation(

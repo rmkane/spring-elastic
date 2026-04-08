@@ -1,7 +1,6 @@
 package com.example.springelastic.service;
 
 import java.io.IOException;
-import java.net.URLConnection;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -18,13 +17,13 @@ import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.query.Criteria;
 import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.springelastic.model.DocumentModel;
 import com.example.springelastic.repository.DocumentRepository;
+import com.example.springelastic.util.ContentTypeHelper;
+import com.example.springelastic.util.StringHelper;
 
 @Slf4j
 @Service
@@ -42,7 +41,7 @@ public class DocumentService {
         document.setFileName(file.getOriginalFilename());
         document.setContent(content);
         document.setFileSize(file.getSize());
-        document.setContentType(resolveContentType(file));
+        document.setContentType(ContentTypeHelper.resolveContentType(file));
         document.setUploadedAt(Instant.now());
         
         log.info(
@@ -99,8 +98,10 @@ public class DocumentService {
     }
 
     public List<DocumentModel> search(String fileNameFragment, String contentTypeFragment) {
-        boolean byName = StringUtils.hasText(fileNameFragment);
-        boolean byType = StringUtils.hasText(contentTypeFragment);
+        String name = StringHelper.trimToNull(fileNameFragment);
+        String type = StringHelper.trimToNull(contentTypeFragment);
+        boolean byName = name != null;
+        boolean byType = type != null;
         if (!byName && !byType) {
             return List.of();
         }
@@ -108,8 +109,6 @@ public class DocumentService {
             log.info("Service: search skipped, index missing");
             return List.of();
         }
-        String name = byName ? fileNameFragment.trim() : "";
-        String type = byType ? contentTypeFragment.trim() : "";
         Criteria criteria;
         if (byName && byType) {
             log.info("Service: search by fileName and contentType, fileName={}, contentType={}", name, type);
@@ -143,29 +142,7 @@ public class DocumentService {
         }
     }
 
-    /**
-     * Multipart clients often send {@code application/octet-stream} or omit the part Content-Type. Prefer the
-     * declared type when it is specific; otherwise guess from the original filename (same idea as
-     * {@link URLConnection#guessContentTypeFromName}).
-     */
-    private static String resolveContentType(MultipartFile file) {
-        String declared = file.getContentType();
-        if (StringUtils.hasText(declared)
-                && !MediaType.APPLICATION_OCTET_STREAM_VALUE.equalsIgnoreCase(declared)) {
-            return declared;
-        }
-        String name = file.getOriginalFilename();
-        if (StringUtils.hasText(name)) {
-            String guessed = URLConnection.guessContentTypeFromName(name);
-            if (StringUtils.hasText(guessed)) {
-                return guessed;
-            }
-        }
-        return StringUtils.hasText(declared) ? declared : MediaType.APPLICATION_OCTET_STREAM_VALUE;
-    }
-
     private boolean currentWeeklyIndexExists() {
         return elasticsearchOperations.indexOps(DocumentModel.class).exists();
     }
 }
-
