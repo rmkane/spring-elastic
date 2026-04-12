@@ -1,4 +1,4 @@
-package com.example.springelastic.controller;
+package com.example.springelastic.consumer.web;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -24,41 +24,43 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.springelastic.model.DocumentModel;
-import com.example.springelastic.service.DocumentService;
-import com.example.springelastic.util.StringHelper;
+import com.example.springelastic.consumer.client.ElasticUpstreamClient;
+import com.example.springelastic.consumer.dto.DocumentJson;
+import com.example.springelastic.consumer.util.StringHelper;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/documents")
 @RequiredArgsConstructor
-@Tag(name = "Documents", description = "Upload and retrieve documents indexed in Elasticsearch")
-public class DocumentController {
-    
-    private final DocumentService documentService;
-    
+@Tag(
+        name = "Documents",
+        description = "Proxied to the upstream Elasticsearch API (same paths and behavior)")
+public class DocumentGatewayController {
+
+    private final ElasticUpstreamClient upstream;
+
     @Operation(summary = "List documents in the current weekly index")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "Documents in the index for the current week",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = DocumentModel.class))))
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = DocumentJson.class))))
     })
     @GetMapping
-    public List<DocumentModel> listDocuments() {
-        log.info("Action: list all documents in current weekly index");
-        return documentService.findAllDocuments();
+    public List<DocumentJson> listDocuments() {
+        log.info("Consumer gateway: list documents");
+        return upstream.listDocuments();
     }
-    
+
     @Operation(summary = "Get documents by id (comma-separated)")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "Documents found (omits unknown ids)",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = DocumentModel.class))))
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = DocumentJson.class))))
     })
     @GetMapping("/by-ids")
-    public List<DocumentModel> getDocumentsByIds(
+    public List<DocumentJson> getDocumentsByIds(
             @Parameter(description = "Comma-separated Elasticsearch document ids", example = "uuid1,uuid2")
             @RequestParam String ids) {
         List<String> idList = Arrays.stream(ids.split(","))
@@ -66,25 +68,24 @@ public class DocumentController {
                 .filter(Objects::nonNull)
                 .toList();
         if (idList.isEmpty()) {
-            log.warn("Action: get by ids rejected, empty id list");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ids must contain at least one id");
         }
-        log.info("Action: get documents by ids, requestedCount={}", idList.size());
-        return documentService.findDocumentsByIds(idList);
+        log.info("Consumer gateway: get documents by ids, requestedCount={}", idList.size());
+        return upstream.getDocumentsByIds(ids);
     }
-    
+
     @Operation(summary = "Search by file name and/or content type (substring match on analyzed text fields)")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "Matches in the current weekly index",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = DocumentModel.class)))),
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = DocumentJson.class)))),
             @ApiResponse(
                     responseCode = "400",
                     description = "Both fileName and contentType missing or blank (provide at least one)")
     })
     @GetMapping("/search")
-    public List<DocumentModel> search(
+    public List<DocumentJson> search(
             @Parameter(description = "Substring of the original file name", example = "sample")
             @RequestParam(required = false) String fileName,
             @Parameter(description = "Substring of Content-Type (e.g. text or json)", example = "text/plain")
@@ -92,82 +93,67 @@ public class DocumentController {
         String nameFragment = StringHelper.trimToNull(fileName);
         String typeFragment = StringHelper.trimToNull(contentType);
         if (nameFragment == null && typeFragment == null) {
-            log.warn("Action: search rejected, missing fileName and contentType");
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Provide fileName and/or contentType query parameter");
         }
         log.info(
-                "Action: search documents, fileNameFragment={}, contentTypeFragment={}",
+                "Consumer gateway: search documents, fileNameFragment={}, contentTypeFragment={}",
                 nameFragment,
                 typeFragment);
-        return documentService.search(nameFragment, typeFragment);
+        return upstream.searchDocuments(fileName, contentType);
     }
-    
-    @Operation(
-            summary = "Purge the current weekly index",
-            description =
-                    "Deletes the entire Elasticsearch index for DocumentModel for the current week (SpEL name). "
-                            + "Other weekly indices are not affected. Idempotent if the index does not exist.")
-    @ApiResponses(@ApiResponse(responseCode = "204", description = "Index deleted or already absent"))
-    @DeleteMapping("/index")
-    public ResponseEntity<Void> purgeCurrentWeeklyIndex() {
-        log.info("Action: purge current weekly index requested");
-        documentService.purgeCurrentWeeklyIndex();
-        log.info("Action: purge current weekly index finished");
-        return ResponseEntity.noContent().build();
-    }
-    
+
     @Operation(summary = "Get a document by id")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "Found",
-                    content = @Content(schema = @Schema(implementation = DocumentModel.class))),
+                    content = @Content(schema = @Schema(implementation = DocumentJson.class))),
             @ApiResponse(responseCode = "404", description = "Not found in the current weekly index")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<DocumentModel> getDocument(@PathVariable String id) {
-        log.info("Action: get document by id, id={}", id);
-        return documentService.findDocumentById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<DocumentJson> getDocument(@PathVariable String id) {
+        log.info("Consumer gateway: get document, id={}", id);
+        return upstream.getDocument(id);
     }
-    
+
     @Operation(summary = "Upload a file")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "201",
-                    description = "Indexed in Elasticsearch",
-                    content = @Content(schema = @Schema(implementation = DocumentModel.class))),
+                    description = "Indexed in Elasticsearch (upstream)",
+                    content = @Content(schema = @Schema(implementation = DocumentJson.class))),
             @ApiResponse(responseCode = "400", description = "Empty file"),
-            @ApiResponse(responseCode = "500", description = "Failed to read or index file")
+            @ApiResponse(responseCode = "500", description = "Failed to read or index file (upstream)")
     })
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<DocumentModel> uploadDocument(
+    public ResponseEntity<DocumentJson> uploadDocument(
             @Parameter(
                     description = "File to store",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
                             schema = @Schema(type = "string", format = "binary")))
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file)
+            throws IOException {
         if (file.isEmpty()) {
-            log.warn("Action: upload rejected, empty file");
             return ResponseEntity.badRequest().build();
         }
-        
         log.info(
-                "Action: upload document, originalFilename={}, size={}, contentType={}",
+                "Consumer gateway: upload document, originalFilename={}, size={}",
                 file.getOriginalFilename(),
-                file.getSize(),
-                file.getContentType());
-        try {
-            DocumentModel savedDocument = documentService.saveDocument(file);
-            log.info("Action: upload complete, documentId={}", savedDocument.getId());
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedDocument);
-        } catch (IOException e) {
-            log.error("Action: upload failed reading multipart file", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+                file.getSize());
+        return upstream.uploadDocument(file);
+    }
+
+    @Operation(
+            summary = "Purge the current weekly index",
+            description =
+                    "Deletes the entire Elasticsearch index for documents for the current week upstream. "
+                            + "Other weekly indices are not affected.")
+    @ApiResponses(@ApiResponse(responseCode = "204", description = "Index deleted or already absent"))
+    @DeleteMapping("/index")
+    public ResponseEntity<Void> purgeCurrentWeeklyIndex() {
+        log.info("Consumer gateway: purge documents index");
+        return upstream.purgeDocumentsIndex();
     }
 }
-

@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: spring-elastic-consumer
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  port: 8883
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    display-request-duration: true
+    doc-expansion: list
+    default-models-expand-depth: 2
+    filter: true
+    persist-authorization: true
+
+elastic-api:
+  base-url: http://localhost:8885
+
+logging:
+  level:
+    com.example.springelastic.consumer: DEBUG

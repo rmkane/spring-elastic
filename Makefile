@@ -4,14 +4,18 @@
 # Variables
 # ============================================================================
 
-# Application variables
+# Multi-module layout: API (Elasticsearch) :8885, consumer (gateway) :8883
 DEBUG_PORT := 8787
 MVN_DEBUG_OPTS := -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=$(DEBUG_PORT)
-ARTIFACT_ID := $(shell mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
-VERSION := $(shell mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-JAR_FILE := target/${ARTIFACT_ID}-${VERSION}.jar
+# Root POM version only (-N); avoids full reactor scan for variable expansion
+VERSION := $(shell mvn -N -q help:evaluate -Dexpression=project.version -DforceStdout)
+API_ARTIFACT_ID := spring-elastic-api
+CONSUMER_ARTIFACT_ID := spring-elastic-consumer
+API_JAR := spring-elastic-api/target/$(API_ARTIFACT_ID)-$(VERSION).jar
+CONSUMER_JAR := spring-elastic-consumer/target/$(CONSUMER_ARTIFACT_ID)-$(VERSION).jar
 
-# Elasticsearch variables
+# Elasticsearch / Docker (see docker-compose.yml)
+COMPOSE_FILE := docker-compose.yml
 ES_CONTAINER_NAME := elasticsearch
 ES_NETWORK := elastic-network
 ES_PASSWORD_FILE := .es_password
@@ -21,8 +25,10 @@ ES_CERT_DIR := es-certs
 # Phony targets
 # ============================================================================
 
-.PHONY: help clean build run-dev run-debug run-jar stop-dev stop-jar status-dev status-jar test
-.PHONY: es-start es-stop es-logs es-status es-get-cert es-get-password es-setup es-clean
+.PHONY: help clean build test \
+	run-dev run-api run-consumer run-debug run-jar run-jar-consumer \
+	stop-dev stop-jar status-dev status-jar \
+	es-start es-stop es-logs es-status es-get-cert es-get-password es-setup es-clean
 
 # ============================================================================
 # Help
@@ -31,36 +37,38 @@ ES_CERT_DIR := es-certs
 help:
 	@echo "Available targets:"
 	@echo ""
-	@echo "Application targets:"
-	@echo "  clean           - Clean up the project"
-	@echo "  build           - Build the application"
-	@echo "  run-dev         - Run the application with hot reload (DevTools)"
-	@echo "  run-debug       - Run the application in debug mode"
-	@echo "  run-jar         - Run the application from JAR file"
-	@echo "  stop-dev        - Stop the development server"
-	@echo "  stop-jar        - Stop the JAR application"
-	@echo "  status-dev      - Check if development server is running"
-	@echo "  status-jar      - Check if JAR application is running"
-	@echo "  test            - Run tests"
+	@echo "Application (API :8885 → Elasticsearch; consumer :8883 → API):"
+	@echo "  clean              Remove Maven build output, $(ES_CERT_DIR)/, $(ES_PASSWORD_FILE)"
+	@echo "  build              mvn package (all modules)"
+	@echo "  test               mvn test (all modules)"
+	@echo "  run-dev, run-api   spring-elastic-api via spring-boot:run (port 8885)"
+	@echo "  run-consumer       spring-elastic-consumer via spring-boot:run (port 8883; start API first)"
+	@echo "  run-debug          API with JDWP on port $(DEBUG_PORT)"
+	@echo "  run-jar            java -jar $(API_JAR) (run build first)"
+	@echo "  run-jar-consumer   java -jar $(CONSUMER_JAR)"
+	@echo "  stop-dev           pkill spring-boot:run"
+	@echo "  stop-jar           pkill API/consumer executable JARs"
+	@echo "  status-dev         pgrep spring-boot:run"
+	@echo "  status-jar         pgrep API/consumer JAR processes"
 	@echo ""
-	@echo "Elasticsearch targets (Docker Compose: docker-compose.yml):"
-	@echo "  es-start        - Start Elasticsearch (docker compose up -d)"
-	@echo "  es-stop         - Stop Elasticsearch (docker compose stop)"
-	@echo "  es-logs         - Show Elasticsearch container logs"
-	@echo "  es-status       - Check Elasticsearch container status"
-	@echo "  es-get-cert     - Extract certificate from container to es-certs/"
-	@echo "  es-get-password - Extract password from container to .es_password"
-	@echo "  es-setup        - Complete setup: start ES, get cert and password"
-	@echo "  es-clean        - Remove Elasticsearch container, network, and files"
+	@echo "Elasticsearch ($(COMPOSE_FILE)):"
+	@echo "  es-start           docker compose up -d, wait for HTTPS :9200"
+	@echo "  es-stop            docker compose stop"
+	@echo "  es-logs            docker logs -f $(ES_CONTAINER_NAME)"
+	@echo "  es-status          docker ps (filtered)"
+	@echo "  es-get-cert        copy http CA cert → $(ES_CERT_DIR)/ca.crt"
+	@echo "  es-get-password    write elastic password → $(ES_PASSWORD_FILE)"
+	@echo "  es-setup           es-start, then cert + password (prints export hints)"
+	@echo "  es-clean           compose down, remove container/network, local cert + password files"
 
 # ============================================================================
-# Application targets
+# Application
 # ============================================================================
 
 clean:
 	@echo "Cleaning up..."
 	@mvn clean
-	@rm -rf es-certs/ .es_password
+	@rm -rf $(ES_CERT_DIR) $(ES_PASSWORD_FILE)
 	@echo "Cleanup complete."
 
 build:
@@ -68,29 +76,47 @@ build:
 	@mvn package
 	@echo "Build complete."
 
-run-dev:
-	@echo "Running the application with hot reload (DevTools enabled)..."
-	@echo "Changes to Java files will trigger automatic restart."
-	@mvn spring-boot:run
-	@echo "Application started."
+test:
+	@echo "Running tests..."
+	@mvn test
+	@echo "Tests complete."
+
+run-dev: run-api
+
+run-api:
+	@echo "Running Elasticsearch API ($(API_ARTIFACT_ID)) with DevTools on port 8885..."
+	@mvn -pl $(API_ARTIFACT_ID) spring-boot:run
+	@echo "API started."
+
+run-consumer:
+	@echo "Running consumer gateway ($(CONSUMER_ARTIFACT_ID)) on port 8883..."
+	@mvn -pl $(CONSUMER_ARTIFACT_ID) spring-boot:run
+	@echo "Consumer started."
 
 run-debug:
-	@echo "Running the application in debug mode..."
-	@mvn spring-boot:run -Dspring-boot.run.jvmArguments="$(MVN_DEBUG_OPTS)"
-	@echo "Application started."
+	@echo "Running API in debug mode (JDWP $(DEBUG_PORT))..."
+	@mvn -pl $(API_ARTIFACT_ID) spring-boot:run -Dspring-boot.run.jvmArguments="$(MVN_DEBUG_OPTS)"
+	@echo "API started."
 
 run-jar:
-	@echo "Running the application from JAR file..."
-	@java -jar $(JAR_FILE)
-	@echo "Application started in background. Use 'make stop-jar' to stop it."
+	@echo "Running API from JAR..."
+	@java -jar $(API_JAR)
+	@echo "API JAR started."
+
+run-jar-consumer:
+	@echo "Running consumer from JAR..."
+	@java -jar $(CONSUMER_JAR)
+	@echo "Consumer JAR started."
 
 stop-dev:
 	@echo "Stopping development server..."
 	@pkill -f "spring-boot:run" || echo "No development server process found."
 
 stop-jar:
-	@echo "Stopping JAR application..."
-	@pkill -f "$(ARTIFACT_ID).*\.jar" || echo "No JAR application process found."
+	@echo "Stopping API / consumer JAR processes..."
+	@pkill -f "$(API_ARTIFACT_ID)-.*\.jar" || true
+	@pkill -f "$(CONSUMER_ARTIFACT_ID)-.*\.jar" || true
+	@echo "Done."
 
 status-dev:
 	@echo "Checking development server status..."
@@ -102,26 +128,27 @@ status-dev:
 	fi
 
 status-jar:
-	@echo "Checking JAR application status..."
-	@if pgrep -f "$(ARTIFACT_ID).*\.jar" > /dev/null; then \
-		echo "✓ JAR application is running"; \
-		ps aux | grep -E "[j]ava.*$(ARTIFACT_ID).*\.jar" | head -1; \
+	@echo "Checking API / consumer JAR status..."
+	@if pgrep -f "$(API_ARTIFACT_ID)-.*\.jar" > /dev/null; then \
+		echo "✓ API JAR is running"; \
+		ps aux | grep -E "[j]ava.*$(API_ARTIFACT_ID).*\.jar" | head -1; \
 	else \
-		echo "✗ JAR application is not running"; \
+		echo "✗ API JAR is not running"; \
+	fi
+	@if pgrep -f "$(CONSUMER_ARTIFACT_ID)-.*\.jar" > /dev/null; then \
+		echo "✓ Consumer JAR is running"; \
+		ps aux | grep -E "[j]ava.*$(CONSUMER_ARTIFACT_ID).*\.jar" | head -1; \
+	else \
+		echo "✗ Consumer JAR is not running"; \
 	fi
 
-test:
-	@echo "Running tests..."
-	@mvn test
-	@echo "Tests complete."
-
 # ============================================================================
-# Elasticsearch targets
+# Elasticsearch
 # ============================================================================
 
 es-start:
 	@echo "Starting Elasticsearch with Docker Compose..."
-	@docker compose up -d
+	@docker compose -f $(COMPOSE_FILE) up -d
 	@echo "Waiting for Elasticsearch to be ready..."
 	@timeout=120; \
 	while [ $$timeout -gt 0 ]; do \
@@ -141,7 +168,7 @@ es-start:
 
 es-stop:
 	@echo "Stopping Elasticsearch..."
-	@docker compose stop
+	@docker compose -f $(COMPOSE_FILE) stop
 	@echo "Elasticsearch stopped."
 
 es-logs:
@@ -222,11 +249,9 @@ es-setup: es-start
 
 es-clean:
 	@echo "Removing Elasticsearch stack..."
-	@docker compose down 2>/dev/null || true
+	@docker compose -f $(COMPOSE_FILE) down 2>/dev/null || true
 	@docker stop $(ES_CONTAINER_NAME) 2>/dev/null || true
 	@docker rm $(ES_CONTAINER_NAME) 2>/dev/null || true
 	@docker network rm $(ES_NETWORK) 2>/dev/null || true
-	@docker volume rm es-certs-data 2>/dev/null || true
 	@rm -rf $(ES_CERT_DIR) $(ES_PASSWORD_FILE)
 	@echo "Cleanup complete."
-

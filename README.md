@@ -1,6 +1,6 @@
 # Spring Elastic Application
 
-Spring Boot service that uploads files to **Elasticsearch** over HTTPS, using a **weekly index** name. Includes **OpenAPI (Swagger UI)**, **Logback** (console + daily rolling files under `logs/`), and **Makefile / Docker Compose** helpers for local Elasticsearch.
+Multi-module Maven project: **domain** (Elasticsearch models, repositories, services), **API** (REST on port **8885**, talks to Elasticsearch), and **consumer** (REST on port **8883**, HTTP client to the API). Uploads use a **weekly index** name. The API includes **OpenAPI (Swagger UI)**, **Logback** (under `logs/` in the API module), and **Makefile / Docker Compose** helpers for local Elasticsearch.
 
 ## Features
 
@@ -51,30 +51,49 @@ export ES_CERT_PATH="$(pwd)/es-certs/ca.crt"
 
 If **`ES_CERT_PATH`** is missing or the file does not exist, the app uses a **trust-all** SSL context for development only.
 
-### 3. Run the application
+### 3. Run the Elasticsearch API
 
 ```bash
-mvn spring-boot:run
+mvn -pl spring-elastic-api spring-boot:run
 # or
 make run-dev
 ```
 
-Default HTTP port: **8080**.
+API HTTP port: **8885**.
 
-### 4. OpenAPI (Swagger UI)
+### 4. (Optional) Run the consumer gateway
 
-With the app running:
+In another terminal (API must be up on **8885**):
 
-- [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+```bash
+mvn -pl spring-elastic-consumer spring-boot:run
+# or
+make run-consumer
+```
+
+Consumer port: **8883**. It exposes the same `/api/...` paths and forwards to the API. Override the upstream base URL with **`elastic-api.base-url`** (see `spring-elastic-consumer/src/main/resources/application.yml`).
+
+### 5. OpenAPI (Swagger UI)
+
+With the **API** running:
+
+- [http://localhost:8885/swagger-ui.html](http://localhost:8885/swagger-ui.html)
 
 Use this to try multipart upload and the GET endpoints.
 
-### 5. Upload a file
+### 6. Upload a file
 
 Run **`curl` from the repository root** so paths like `data/...` resolve, or use absolute paths.
 
 ```bash
-curl -X POST http://localhost:8080/api/documents/upload \
+curl -X POST http://localhost:8885/api/documents/upload \
+  -F "file=@data/sample1.txt"
+```
+
+Via the consumer (port **8883**):
+
+```bash
+curl -X POST http://localhost:8883/api/documents/upload \
   -F "file=@data/sample1.txt"
 ```
 
@@ -109,8 +128,9 @@ After changing mappings (e.g. adding keyword fields), **purge the current index*
 
 ### Application
 
-- `make run-dev` — Spring Boot with DevTools
-- `make test` — `mvn test`
+- `make run-dev` / `make run-api` — Elasticsearch API (port **8885**) with DevTools
+- `make run-consumer` — consumer gateway (port **8883**)
+- `make test` — `mvn test` (all modules)
 - `make build`, `make clean`, etc. — see `make help`
 
 ### Elasticsearch (Docker Compose)
@@ -148,7 +168,7 @@ Use the index name that matches **your** current week (see **Index naming** abov
 | `LOG_FILE_NAME` | Log file base name | `spring-elastic` |
 | `LOG_APP_LEVEL` | Log level for `com.example.springelastic` | `INFO` |
 
-Application config: **`src/main/resources/application.yml`**. Logging: **`logback-spring.xml`** (console + daily rollover under **`logs/`**; that directory is gitignored).
+API config: **`spring-elastic-api/src/main/resources/application.yml`**. Consumer config: **`spring-elastic-consumer/src/main/resources/application.yml`**. API logging: **`spring-elastic-api/src/main/resources/logback-spring.xml`** (console + daily rollover under **`logs/`**; that directory is gitignored).
 
 ## Tests
 
@@ -162,23 +182,14 @@ Includes tests for **`StringHelper`** and **`ContentTypeHelper`**.
 
 ```none
 spring-elastic/
-├── data/                    # sample files for manual upload tests
-├── docker-compose.yml       # local Elasticsearch
-├── logs/                    # runtime logs (gitignored)
-├── scripts/                 # curl helpers for Elasticsearch
-├── src/main/java/com/example/springelastic/
-│   ├── config/              # Elasticsearch client + SSL, custom conversions
-│   ├── controller/          # DocumentController
-│   ├── convert/             # Instant read/write for ES dates
-│   ├── model/               # DocumentModel
-│   ├── repository/
-│   ├── service/             # DocumentService
-│   └── util/                # StringHelper, ContentTypeHelper
-├── src/main/resources/
-│   ├── application.yml
-│   └── logback-spring.xml
-├── src/test/java/.../util/  # util unit tests
+├── pom.xml                         # parent (packaging pom)
+├── spring-elastic-domain/          # models, repositories, ES config, services, util, tests
+├── spring-elastic-api/             # Spring Boot :8885 — REST controllers, OpenAPI, logback
+├── spring-elastic-consumer/        # Spring Boot :8883 — RestClient gateway to API
+├── data/                           # sample files for manual upload tests
+├── docker-compose.yml              # local Elasticsearch
+├── logs/                           # API runtime logs (gitignored)
+├── scripts/                        # curl helpers for Elasticsearch
 ├── Makefile
-├── pom.xml
 └── README.md
 ```
