@@ -27,8 +27,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.springelastic.consumer.client.ElasticUpstreamClient;
 import com.example.springelastic.consumer.dto.ProductJson;
+import com.example.springelastic.consumer.service.ProductService;
 import com.example.springelastic.consumer.util.StringHelper;
 
 @Slf4j
@@ -39,7 +39,7 @@ import com.example.springelastic.consumer.util.StringHelper;
 @Tag(name = "Products", description = "Proxied to the upstream Elasticsearch API (same paths and behavior)")
 public class ProductGatewayController {
 
-    private final ElasticUpstreamClient upstream;
+    private final ProductService productService;
 
     @Operation(summary = "List all products")
     @ApiResponses({
@@ -51,7 +51,7 @@ public class ProductGatewayController {
     @GetMapping
     public List<ProductJson> listProducts() {
         log.info("Consumer gateway: list products (upstream)");
-        return upstream.listProducts();
+        return productService.listProducts();
     }
 
     @Operation(summary = "Find products by category id(s)")
@@ -74,7 +74,7 @@ public class ProductGatewayController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "categoryIds must contain at least one id");
         }
         log.info("Consumer gateway: find by category, idCount={}", ids.size());
-        return upstream.findByCategory(categoryIds);
+        return productService.findByCategory(categoryIds);
     }
 
     @Operation(
@@ -98,7 +98,7 @@ public class ProductGatewayController {
     @PostMapping("/category-product-ids")
     public Map<String, Set<String>> categoryToProductIds(@RequestBody @Size(max = 10) List<String> categoryIds) {
         log.info("Consumer gateway: category to product ids, rawCount={}", categoryIds.size());
-        return upstream.categoryToProductIds(categoryIds);
+        return productService.categoryToProductIds(categoryIds);
     }
 
     @Operation(summary = "Get a product by id")
@@ -112,7 +112,7 @@ public class ProductGatewayController {
     @GetMapping("/{id}")
     public ResponseEntity<ProductJson> getProduct(@PathVariable String id) {
         log.info("Consumer gateway: get product, id={}", id);
-        return upstream.getProduct(id);
+        return productService.getProduct(id);
     }
 
     @Operation(summary = "Create or update a product (body id optional; generated if absent)")
@@ -130,7 +130,7 @@ public class ProductGatewayController {
     public ResponseEntity<ProductJson> saveProduct(@RequestBody ProductJson product) {
         boolean create = StringHelper.trimToNull(product.id()) == null;
         log.info("Consumer gateway: save product, create={}, id={}", create, product.id());
-        return upstream.saveProduct(product);
+        return productService.saveProduct(product);
     }
 
     @Operation(summary = "Delete a product by id")
@@ -140,6 +140,6 @@ public class ProductGatewayController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable String id) {
         log.info("Consumer gateway: delete product, id={}", id);
-        return upstream.deleteProduct(id);
+        return productService.deleteProduct(id);
     }
 }

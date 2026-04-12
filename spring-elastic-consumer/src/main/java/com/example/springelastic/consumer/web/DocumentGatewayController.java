@@ -24,8 +24,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.springelastic.consumer.client.ElasticUpstreamClient;
 import com.example.springelastic.consumer.dto.DocumentJson;
+import com.example.springelastic.consumer.service.DocumentService;
 import com.example.springelastic.consumer.util.StringHelper;
 
 @Slf4j
@@ -37,7 +37,7 @@ import com.example.springelastic.consumer.util.StringHelper;
         description = "Proxied to the upstream Elasticsearch API (same paths and behavior)")
 public class DocumentGatewayController {
 
-    private final ElasticUpstreamClient upstream;
+    private final DocumentService documentService;
 
     @Operation(summary = "List documents in the current weekly index")
     @ApiResponses({
@@ -49,7 +49,7 @@ public class DocumentGatewayController {
     @GetMapping
     public List<DocumentJson> listDocuments() {
         log.info("Consumer gateway: list documents");
-        return upstream.listDocuments();
+        return documentService.listDocuments();
     }
 
     @Operation(summary = "Get documents by id (comma-separated)")
@@ -71,7 +71,7 @@ public class DocumentGatewayController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ids must contain at least one id");
         }
         log.info("Consumer gateway: get documents by ids, requestedCount={}", idList.size());
-        return upstream.getDocumentsByIds(ids);
+        return documentService.getDocumentsByIds(ids);
     }
 
     @Operation(summary = "Search by file name and/or content type (substring match on analyzed text fields)")
@@ -100,7 +100,7 @@ public class DocumentGatewayController {
                 "Consumer gateway: search documents, fileNameFragment={}, contentTypeFragment={}",
                 nameFragment,
                 typeFragment);
-        return upstream.searchDocuments(fileName, contentType);
+        return documentService.searchDocuments(fileName, contentType);
     }
 
     @Operation(summary = "Get a document by id")
@@ -114,7 +114,7 @@ public class DocumentGatewayController {
     @GetMapping("/{id}")
     public ResponseEntity<DocumentJson> getDocument(@PathVariable String id) {
         log.info("Consumer gateway: get document, id={}", id);
-        return upstream.getDocument(id);
+        return documentService.getDocument(id);
     }
 
     @Operation(summary = "Upload a file")
@@ -142,7 +142,7 @@ public class DocumentGatewayController {
                 "Consumer gateway: upload document, originalFilename={}, size={}",
                 file.getOriginalFilename(),
                 file.getSize());
-        return upstream.uploadDocument(file);
+        return documentService.uploadDocument(file);
     }
 
     @Operation(
@@ -154,6 +154,6 @@ public class DocumentGatewayController {
     @DeleteMapping("/index")
     public ResponseEntity<Void> purgeCurrentWeeklyIndex() {
         log.info("Consumer gateway: purge documents index");
-        return upstream.purgeDocumentsIndex();
+        return documentService.purgeDocumentsIndex();
     }
 }

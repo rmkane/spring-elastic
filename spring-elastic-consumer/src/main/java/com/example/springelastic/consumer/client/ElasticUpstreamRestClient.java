@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
@@ -22,13 +23,16 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.example.springelastic.consumer.dto.DocumentJson;
 import com.example.springelastic.consumer.dto.ProductJson;
 
+/** Raw HTTP to the Elasticsearch API (no cache). Each call is logged once here. */
+@Slf4j
 @Service
 @RequiredArgsConstructor
-public class ElasticUpstreamClient {
+public class ElasticUpstreamRestClient {
 
     private final RestClient elasticApiRestClient;
 
     public List<ProductJson> listProducts() {
+        log.info("Upstream HTTP: GET /api/products");
         return elasticApiRestClient
                 .get()
                 .uri("/api/products")
@@ -37,6 +41,7 @@ public class ElasticUpstreamClient {
     }
 
     public List<ProductJson> findByCategory(String categoryIdsQuery) {
+        log.info("Upstream HTTP: GET /api/products/by-category");
         return elasticApiRestClient
                 .get()
                 .uri(uriBuilder -> uriBuilder
@@ -48,6 +53,7 @@ public class ElasticUpstreamClient {
     }
 
     public Map<String, Set<String>> categoryToProductIds(List<String> categoryIds) {
+        log.info("Upstream HTTP: POST /api/products/category-product-ids");
         return elasticApiRestClient
                 .post()
                 .uri("/api/products/category-product-ids")
@@ -58,6 +64,7 @@ public class ElasticUpstreamClient {
     }
 
     public ResponseEntity<ProductJson> getProduct(String id) {
+        log.info("Upstream HTTP: GET /api/products/{}", id);
         return elasticApiRestClient
                 .get()
                 .uri("/api/products/{id}", id)
@@ -66,6 +73,7 @@ public class ElasticUpstreamClient {
     }
 
     public ResponseEntity<ProductJson> saveProduct(ProductJson product) {
+        log.info("Upstream HTTP: POST /api/products");
         return elasticApiRestClient
                 .post()
                 .uri("/api/products")
@@ -76,10 +84,12 @@ public class ElasticUpstreamClient {
     }
 
     public ResponseEntity<Void> deleteProduct(String id) {
+        log.info("Upstream HTTP: DELETE /api/products/{}", id);
         return elasticApiRestClient.delete().uri("/api/products/{id}", id).retrieve().toBodilessEntity();
     }
 
     public List<DocumentJson> listDocuments() {
+        log.info("Upstream HTTP: GET /api/documents");
         return elasticApiRestClient
                 .get()
                 .uri("/api/documents")
@@ -88,6 +98,7 @@ public class ElasticUpstreamClient {
     }
 
     public List<DocumentJson> getDocumentsByIds(String ids) {
+        log.info("Upstream HTTP: GET /api/documents/by-ids");
         return elasticApiRestClient
                 .get()
                 .uri(uriBuilder ->
@@ -97,6 +108,7 @@ public class ElasticUpstreamClient {
     }
 
     public List<DocumentJson> searchDocuments(String fileName, String contentType) {
+        log.info("Upstream HTTP: GET /api/documents/search");
         UriComponentsBuilder b = UriComponentsBuilder.fromPath("/api/documents/search");
         if (fileName != null) {
             b.queryParam("fileName", fileName);
@@ -112,10 +124,12 @@ public class ElasticUpstreamClient {
     }
 
     public ResponseEntity<Void> purgeDocumentsIndex() {
+        log.info("Upstream HTTP: DELETE /api/documents/index");
         return elasticApiRestClient.delete().uri("/api/documents/index").retrieve().toBodilessEntity();
     }
 
     public ResponseEntity<DocumentJson> getDocument(String id) {
+        log.info("Upstream HTTP: GET /api/documents/{}", id);
         return elasticApiRestClient
                 .get()
                 .uri("/api/documents/{id}", id)
@@ -124,6 +138,7 @@ public class ElasticUpstreamClient {
     }
 
     public ResponseEntity<DocumentJson> uploadDocument(MultipartFile file) throws IOException {
+        log.info("Upstream HTTP: POST /api/documents/upload");
         ByteArrayResource resource = new ByteArrayResource(file.getBytes()) {
             @Override
             public String getFilename() {

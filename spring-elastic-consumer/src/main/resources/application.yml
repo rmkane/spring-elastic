@@ -4,6 +4,13 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+  cache:
+    type: redis
 
 server:
   port: 8883
@@ -22,6 +29,19 @@ springdoc:
 
 elastic-api:
   base-url: http://localhost:8885
+
+app:
+  cache:
+    default-ttl: PT5M
+    ttl-by-name:
+      documentsList: PT1M
+      documentsByIds: PT2M
+      documentsSearch: PT2M
+      documentById: PT10M
+      productsList: PT1M
+      productsByCategory: PT2M
+      categoryProductIds: PT2M
+      productById: PT10M
 
 logging:
   level:

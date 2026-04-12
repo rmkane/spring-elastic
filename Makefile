@@ -14,9 +14,11 @@ CONSUMER_ARTIFACT_ID := spring-elastic-consumer
 API_JAR := spring-elastic-api/target/$(API_ARTIFACT_ID)-$(VERSION).jar
 CONSUMER_JAR := spring-elastic-consumer/target/$(CONSUMER_ARTIFACT_ID)-$(VERSION).jar
 
-# Elasticsearch / Docker (see docker-compose.yml)
+# Elasticsearch / Redis / Docker (see docker-compose.yml)
 COMPOSE_FILE := docker-compose.yml
 ES_CONTAINER_NAME := elasticsearch
+REDIS_SERVICE_NAME := redis
+REDIS_CONTAINER_NAME := spring-elastic-redis
 ES_NETWORK := elastic-network
 ES_PASSWORD_FILE := .es_password
 ES_CERT_DIR := es-certs
@@ -28,7 +30,8 @@ ES_CERT_DIR := es-certs
 .PHONY: help clean build test \
 	run-dev run-api run-consumer run-debug run-jar run-jar-consumer \
 	stop-dev stop-jar status-dev status-jar \
-	es-start es-stop es-logs es-status es-get-cert es-get-password es-setup es-clean
+	es-start es-stop es-logs es-status es-get-cert es-get-password es-setup es-clean \
+	redis-start redis-stop redis-logs redis-status redis-cli redis-flush
 
 # ============================================================================
 # Help
@@ -41,8 +44,8 @@ help:
 	@echo "  clean              Remove Maven build output, $(ES_CERT_DIR)/, $(ES_PASSWORD_FILE)"
 	@echo "  build              mvn package (all modules)"
 	@echo "  test               mvn test (all modules)"
-	@echo "  run-dev, run-api   spring-elastic-api via spring-boot:run (port 8885)"
-	@echo "  run-consumer       spring-elastic-consumer via spring-boot:run (port 8883; start API first)"
+	@echo "  run-dev, run-api   spring-elastic-api via spring-boot:run (port 8885; start ES only)"
+	@echo "  run-consumer       consumer gateway :8883 (start API first; start Redis for response caching)"
 	@echo "  run-debug          API with JDWP on port $(DEBUG_PORT)"
 	@echo "  run-jar            java -jar $(API_JAR) (run build first)"
 	@echo "  run-jar-consumer   java -jar $(CONSUMER_JAR)"
@@ -60,6 +63,14 @@ help:
 	@echo "  es-get-password    write elastic password → $(ES_PASSWORD_FILE)"
 	@echo "  es-setup           es-start, then cert + password (prints export hints)"
 	@echo "  es-clean           compose down, remove container/network, local cert + password files"
+	@echo ""
+	@echo "Redis ($(COMPOSE_FILE) service $(REDIS_SERVICE_NAME), consumer gateway cache; host port 6379):"
+	@echo "  redis-start        docker compose up -d redis, wait for PING"
+	@echo "  redis-stop         docker compose stop redis (Elasticsearch keeps running)"
+	@echo "  redis-logs         docker logs -f $(REDIS_CONTAINER_NAME)"
+	@echo "  redis-status       docker ps (filtered)"
+	@echo "  redis-cli          docker exec -it $(REDIS_CONTAINER_NAME) redis-cli"
+	@echo "  redis-flush        FLUSHDB on Redis (clears consumer cache and anything else in DB 0)"
 
 # ============================================================================
 # Application
@@ -252,6 +263,47 @@ es-clean:
 	@docker compose -f $(COMPOSE_FILE) down 2>/dev/null || true
 	@docker stop $(ES_CONTAINER_NAME) 2>/dev/null || true
 	@docker rm $(ES_CONTAINER_NAME) 2>/dev/null || true
+	@docker stop $(REDIS_CONTAINER_NAME) 2>/dev/null || true
+	@docker rm $(REDIS_CONTAINER_NAME) 2>/dev/null || true
 	@docker network rm $(ES_NETWORK) 2>/dev/null || true
 	@rm -rf $(ES_CERT_DIR) $(ES_PASSWORD_FILE)
 	@echo "Cleanup complete."
+
+# ============================================================================
+# Redis
+# ============================================================================
+
+redis-start:
+	@echo "Starting Redis ($(REDIS_SERVICE_NAME)) with Docker Compose..."
+	@docker compose -f $(COMPOSE_FILE) up -d $(REDIS_SERVICE_NAME)
+	@echo "Waiting for Redis to accept connections..."
+	@timeout=30; \
+	while [ $$timeout -gt 0 ]; do \
+		if docker exec $(REDIS_CONTAINER_NAME) redis-cli ping 2>/dev/null | grep -q PONG; then \
+			echo "Redis is ready (PONG)."; \
+			break; \
+		fi; \
+		sleep 1; \
+		timeout=$$((timeout-1)); \
+	done
+	@docker exec $(REDIS_CONTAINER_NAME) redis-cli ping 2>/dev/null | grep -q PONG || \
+		(echo "Warning: Redis may still be starting. Check logs with: make redis-logs"; exit 0)
+
+redis-stop:
+	@echo "Stopping Redis..."
+	@docker compose -f $(COMPOSE_FILE) stop $(REDIS_SERVICE_NAME)
+	@echo "Redis stopped."
+
+redis-logs:
+	@docker logs -f $(REDIS_CONTAINER_NAME)
+
+redis-status:
+	@docker ps -a | grep $(REDIS_CONTAINER_NAME) || echo "Container not found"
+
+redis-cli:
+	@docker exec -it $(REDIS_CONTAINER_NAME) redis-cli
+
+redis-flush:
+	@echo "Flushing Redis database 0 ($(REDIS_CONTAINER_NAME))..."
+	@docker exec $(REDIS_CONTAINER_NAME) redis-cli FLUSHDB
+	@echo "Done."

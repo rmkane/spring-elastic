@@ -12,6 +12,14 @@ services:
     networks:
       - elastic-network
 
+  redis:
+    image: redis:8.6.2-alpine
+    container_name: spring-elastic-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - elastic-network
+
 networks:
   elastic-network:
     name: elastic-network

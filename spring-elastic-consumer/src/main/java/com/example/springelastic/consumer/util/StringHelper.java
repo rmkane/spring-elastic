@@ -1,8 +1,11 @@
 package com.example.springelastic.consumer.util;
 
-public final class StringHelper {
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
-    private StringHelper() {}
+/** Small string utilities for request parameters (consumer copy of the domain helper). */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public class StringHelper {
 
     public static String trimToNull(String value) {
         if (value == null) {

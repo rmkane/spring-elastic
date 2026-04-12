@@ -1,5 +1,6 @@
 package com.example.springelastic.consumer.dto;
 
+import java.io.Serializable;
 import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -14,4 +15,8 @@ public record DocumentJson(
         String content,
         Long fileSize,
         String contentType,
-        Instant uploadedAt) {}
+        Instant uploadedAt)
+        implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+}
