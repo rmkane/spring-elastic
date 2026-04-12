@@ -1,6 +1,9 @@
 spring:
   application:
     name: spring-elastic
+  mvc:
+    problemdetails:
+      enabled: true
   data:
     elasticsearch:
       uris: ${ES_URIS:https://localhost:9200}
