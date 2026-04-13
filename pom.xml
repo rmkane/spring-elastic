@@ -11,18 +11,18 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.example</groupId>
-    <artifactId>spring-elastic</artifactId>
+    <groupId>org.acme</groupId>
+    <artifactId>acme-elastic</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Spring Elastic</name>
-    <description>Multi-module Spring Boot apps with Elasticsearch and an HTTP consumer</description>
+    <name>ACME Elastic</name>
+    <description>Multi-module ACME apps with Elasticsearch and an HTTP consumer</description>
 
     <modules>
-        <module>spring-elastic-domain</module>
-        <module>spring-elastic-api</module>
-        <module>spring-elastic-consumer</module>
+        <module>acme-elastic-domain</module>
+        <module>acme-elastic-api</module>
+        <module>acme-elastic-consumer</module>
     </modules>
 
     <properties>
@@ -33,8 +33,8 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>com.example</groupId>
-                <artifactId>spring-elastic-domain</artifactId>
+                <groupId>org.acme</groupId>
+                <artifactId>acme-elastic-domain</artifactId>
                 <version>${project.version}</version>
             </dependency>
              <dependency>

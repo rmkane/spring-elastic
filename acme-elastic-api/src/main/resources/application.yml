@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: spring-elastic-api
+  mvc:
+    problemdetails:
+      enabled: true
+  data:
+    elasticsearch:
+      uris: ${ES_URIS:https://localhost:9200}
+      username: ${ES_USERNAME:elastic}
+      # Same default as docker-compose ELASTIC_PASSWORD:-changeme; set ES_PASSWORD in real deployments
+      password: ${ES_PASSWORD:changeme}
+      connection-timeout: 10s
+      socket-timeout: 60s
+
+server:
+  port: 8885
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    display-request-duration: true
+    doc-expansion: list
+    default-models-expand-depth: 2
+    filter: true
+    persist-authorization: true
+
+logging:
+  level:
+    org.acme.elastic: DEBUG
+    org.springframework.data.elasticsearch: DEBUG
+    org.elasticsearch: INFO

@@ -166,7 +166,7 @@ Use the index name that matches **your** current week (see **Index naming** abov
 | `ES_CERT_PATH` | PEM CA for TLS verify | (empty → trust-all in dev) |
 | `LOG_PATH` | Logback file directory | `logs` |
 | `LOG_FILE_NAME` | Log file base name | `spring-elastic` |
-| `LOG_APP_LEVEL` | Log level for `com.example.springelastic` | `INFO` |
+| `LOG_APP_LEVEL` | Log level for `org.acme.elastic` | `INFO` |
 
 API config: **`spring-elastic-api/src/main/resources/application.yml`**. Consumer config: **`spring-elastic-consumer/src/main/resources/application.yml`**. API logging: **`spring-elastic-api/src/main/resources/logback-spring.xml`** (console + daily rollover under **`logs/`**; that directory is gitignored).
 
