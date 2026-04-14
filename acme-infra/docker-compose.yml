@@ -1,0 +1,46 @@
+# Shared local dependencies for ACME apps. Not a Maven module — use Make targets
+# under elastic/, redis/, or artemis/ (or this file directly with docker compose).
+#
+# Project name is fixed so containers and the network are stable across repos.
+name: acme-infra
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.13
+    container_name: acme-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - acme-dev
+
+  redis:
+    image: redis:8.6.2-alpine
+    container_name: acme-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - acme-dev
+
+  # Optional: docker compose --profile artemis up -d artemis
+  # (or: make -C artemis start)
+  artemis:
+    image: apache/activemq-artemis:2.37.0
+    container_name: acme-artemis
+    profiles: [artemis]
+    ports:
+      - "61616:61616"
+      - "8161:8161"
+    networks:
+      - acme-dev
+    environment:
+      # Defaults match the apache/activemq-artemis image
+      ARTEMIS_USER: ${ARTEMIS_USER:-artemis}
+      ARTEMIS_PASSWORD: ${ARTEMIS_PASSWORD:-artemis}
+
+networks:
+  acme-dev:
+    name: acme-dev-network

@@ -1,26 +1,30 @@
 spring:
   application:
-    name: spring-elastic-api
+    name: ${SPRING_APPLICATION_NAME:spring-elastic-api}
   mvc:
     problemdetails:
       enabled: true
   data:
     elasticsearch:
-      uris: ${ES_URIS:https://localhost:9200}
-      username: ${ES_USERNAME:elastic}
-      # Same default as docker-compose ELASTIC_PASSWORD:-changeme; set ES_PASSWORD in real deployments
-      password: ${ES_PASSWORD:changeme}
-      connection-timeout: 10s
-      socket-timeout: 60s
+      uris: ${ES_URIS}
+      username: ${ES_USERNAME}
+      password: ${ES_PASSWORD}
+      connection-timeout: ${ES_CONNECTION_TIMEOUT:10s}
+      socket-timeout: ${ES_SOCKET_TIMEOUT:60s}
 
 server:
-  port: 8885
+  port: ${SERVER_PORT:8885}
+
+# TLS CA for Elasticsearch (optional; empty → trust-all in dev — see ElasticsearchConfig)
+acme:
+  elastic:
+    cert-path: ${ES_CERT_PATH:}
 
 springdoc:
   api-docs:
-    path: /v3/api-docs
+    path: ${SPRINGDOC_API_DOCS_PATH:/v3/api-docs}
   swagger-ui:
-    path: /swagger-ui.html
+    path: ${SPRINGDOC_SWAGGER_UI_PATH:/swagger-ui.html}
     tags-sorter: alpha
     display-request-duration: true
     doc-expansion: list
@@ -30,6 +34,6 @@ springdoc:
 
 logging:
   level:
-    org.acme.elastic: DEBUG
-    org.springframework.data.elasticsearch: DEBUG
-    org.elasticsearch: INFO
+    org.acme.elastic: ${LOGGING_LEVEL_ORG_ACME_ELASTIC:DEBUG}
+    org.springframework.data.elasticsearch: ${LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_DATA_ELASTICSEARCH:DEBUG}
+    org.elasticsearch: ${LOGGING_LEVEL_ORG_ELASTICSEARCH:INFO}

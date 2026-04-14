@@ -3,7 +3,10 @@ package org.acme.elastic.consumer.util;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
-/** Small string utilities for request parameters (consumer copy of the domain helper). */
+/**
+ * Small string utilities for request parameters (consumer copy of the domain
+ * helper).
+ */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class StringHelper {
 

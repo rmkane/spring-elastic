@@ -17,7 +17,7 @@ class StringHelperTest {
 
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {" ", "  ", "\t", "\n", "\r\n"})
+    @ValueSource(strings = { " ", "  ", "\t", "\n", "\r\n" })
     void trimToNull_blank_returnsNull(String input) {
         assertNull(StringHelper.trimToNull(input));
     }

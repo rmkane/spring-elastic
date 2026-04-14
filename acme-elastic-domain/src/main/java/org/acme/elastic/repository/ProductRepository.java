@@ -11,6 +11,8 @@ import org.acme.elastic.model.Product;
 @Repository
 public interface ProductRepository extends ElasticsearchRepository<Product, String> {
 
-    /** Products whose {@code categoryIds} contain at least one of the given values. */
+    /**
+     * Products whose {@code categoryIds} contain at least one of the given values.
+     */
     List<Product> findByCategoryIdsIn(Collection<String> categoryIds);
 }

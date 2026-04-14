@@ -4,12 +4,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import lombok.NoArgsConstructor;
 import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 import org.acme.elastic.consumer.util.StringHelper;
 
-/** Stable SpEL keys for {@link org.springframework.cache.annotation.Cacheable}. */
+/**
+ * Stable SpEL keys for {@link org.springframework.cache.annotation.Cacheable}.
+ */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class ConsumerCacheKeys {
 

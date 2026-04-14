@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Script to check a specific Elasticsearch index
 # Usage: ./scripts/check-index.sh <index-name> [options]
@@ -7,20 +7,24 @@
 #   -m, --mapping    Show index mapping
 #   -a, --all        Show all index information
 #   -h, --help       Show this help message
+#
+# Requires exported env (e.g. source acme-infra/acme-dev-env.sh): ES_URIS, ES_USERNAME,
+# ES_PASSWORD, ES_CERT_PATH. This script does not set defaults or read password files.
 
 set -e
 
-# Load environment variables with defaults
-ES_URIS="${ES_URIS:-https://localhost:9200}"
-ES_USERNAME="${ES_USERNAME:-elastic}"
-ES_PASSWORD="${ES_PASSWORD:-}"
-ES_CERT_PATH="${ES_CERT_PATH:-}"
+require_env() {
+    local _n="$1"
+    if [ -z "${!_n:-}" ]; then
+        echo "Error: ${_n} is not set. Export it first (e.g. source acme-infra/acme-dev-env.sh)." >&2
+        exit 1
+    fi
+}
 
 SHOW_STATS=false
 SHOW_MAPPING=false
 SHOW_ALL=false
 
-# Parse arguments
 INDEX_NAME=""
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -78,23 +82,18 @@ if [ -z "$INDEX_NAME" ]; then
     exit 1
 fi
 
-if [ -z "$ES_PASSWORD" ]; then
-    if [ -f ".es_password" ]; then
-        ES_PASSWORD=$(cat .es_password)
-    else
-        echo "Error: ES_PASSWORD not set and .es_password file not found"
-        echo "Set ES_PASSWORD environment variable or run 'make es-setup'"
-        exit 1
-    fi
-fi
+require_env ES_URIS
+require_env ES_USERNAME
+require_env ES_PASSWORD
+require_env ES_CERT_PATH
 
 # Build curl command
 CURL_CMD="curl -s -u ${ES_USERNAME}:${ES_PASSWORD}"
 
-# Add certificate if provided
-if [ -n "$ES_CERT_PATH" ] && [ -f "$ES_CERT_PATH" ]; then
+if [ -f "$ES_CERT_PATH" ]; then
     CURL_CMD="${CURL_CMD} --cacert ${ES_CERT_PATH}"
 else
+    echo "Warning: ES_CERT_PATH file not found (${ES_CERT_PATH}); using curl -k" >&2
     CURL_CMD="${CURL_CMD} -k"
 fi
 
@@ -102,7 +101,6 @@ echo "Checking index: $INDEX_NAME"
 echo "Connecting to: $ES_URIS"
 echo ""
 
-# Check if index exists
 INDEX_EXISTS=$(${CURL_CMD} -o /dev/null -w "%{http_code}" "${ES_URIS}/${INDEX_NAME}" 2>&1)
 
 if [ "$INDEX_EXISTS" != "200" ]; then
@@ -113,7 +111,6 @@ if [ "$INDEX_EXISTS" != "200" ]; then
     exit 1
 fi
 
-# Show index information
 if [ "$SHOW_ALL" = true ] || ([ "$SHOW_STATS" = false ] && [ "$SHOW_MAPPING" = false ]); then
     echo "=== Index Information ==="
     INDEX_INFO=$(${CURL_CMD} "${ES_URIS}/${INDEX_NAME}?pretty" 2>&1)
@@ -125,7 +122,6 @@ if [ "$SHOW_ALL" = true ] || ([ "$SHOW_STATS" = false ] && [ "$SHOW_MAPPING" = f
     echo ""
 fi
 
-# Show index statistics
 if [ "$SHOW_ALL" = true ] || [ "$SHOW_STATS" = true ]; then
     echo "=== Index Statistics ==="
     STATS_INFO=$(${CURL_CMD} "${ES_URIS}/${INDEX_NAME}/_stats?pretty" 2>&1)
@@ -137,7 +133,6 @@ if [ "$SHOW_ALL" = true ] || [ "$SHOW_STATS" = true ]; then
     echo ""
 fi
 
-# Show index mapping
 if [ "$SHOW_ALL" = true ] || [ "$SHOW_MAPPING" = true ]; then
     echo "=== Index Mapping ==="
     MAPPING_INFO=$(${CURL_CMD} "${ES_URIS}/${INDEX_NAME}/_mapping?pretty" 2>&1)
@@ -149,7 +144,6 @@ if [ "$SHOW_ALL" = true ] || [ "$SHOW_MAPPING" = true ]; then
     echo ""
 fi
 
-# Show document count
 echo "=== Document Count ==="
 DOC_COUNT=$(${CURL_CMD} "${ES_URIS}/${INDEX_NAME}/_count?pretty" 2>&1)
 if command -v jq &> /dev/null; then
@@ -157,4 +151,3 @@ if command -v jq &> /dev/null; then
 else
     echo "$DOC_COUNT"
 fi
-

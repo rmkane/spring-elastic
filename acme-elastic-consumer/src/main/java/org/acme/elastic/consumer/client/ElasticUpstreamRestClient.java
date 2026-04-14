@@ -6,9 +6,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
@@ -20,10 +17,15 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.acme.elastic.consumer.dto.DocumentJson;
 import org.acme.elastic.consumer.dto.ProductJson;
 
-/** Raw HTTP to the Elasticsearch API (no cache). Each call is logged once here. */
+/**
+ * Raw HTTP to the Elasticsearch API (no cache). Each call is logged once here.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -37,7 +39,8 @@ public class ElasticUpstreamRestClient {
                 .get()
                 .uri("/api/products")
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<ProductJson>>() {});
+                .body(new ParameterizedTypeReference<List<ProductJson>>() {
+                });
     }
 
     public List<ProductJson> findByCategory(String categoryIdsQuery) {
@@ -49,7 +52,8 @@ public class ElasticUpstreamRestClient {
                         .queryParam("categoryIds", categoryIdsQuery)
                         .build())
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<ProductJson>>() {});
+                .body(new ParameterizedTypeReference<List<ProductJson>>() {
+                });
     }
 
     public Map<String, Set<String>> categoryToProductIds(List<String> categoryIds) {
@@ -60,7 +64,8 @@ public class ElasticUpstreamRestClient {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(categoryIds)
                 .retrieve()
-                .body(new ParameterizedTypeReference<Map<String, Set<String>>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Set<String>>>() {
+                });
     }
 
     public ResponseEntity<ProductJson> getProduct(String id) {
@@ -94,17 +99,18 @@ public class ElasticUpstreamRestClient {
                 .get()
                 .uri("/api/documents")
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<DocumentJson>>() {});
+                .body(new ParameterizedTypeReference<List<DocumentJson>>() {
+                });
     }
 
     public List<DocumentJson> getDocumentsByIds(String ids) {
         log.info("Upstream HTTP: GET /api/documents/by-ids");
         return elasticApiRestClient
                 .get()
-                .uri(uriBuilder ->
-                        uriBuilder.path("/api/documents/by-ids").queryParam("ids", ids).build())
+                .uri(uriBuilder -> uriBuilder.path("/api/documents/by-ids").queryParam("ids", ids).build())
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<DocumentJson>>() {});
+                .body(new ParameterizedTypeReference<List<DocumentJson>>() {
+                });
     }
 
     public List<DocumentJson> searchDocuments(String fileName, String contentType) {
@@ -120,7 +126,8 @@ public class ElasticUpstreamRestClient {
                 .get()
                 .uri(b.build().encode().toUriString())
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<DocumentJson>>() {});
+                .body(new ParameterizedTypeReference<List<DocumentJson>>() {
+                });
     }
 
     public ResponseEntity<Void> purgeDocumentsIndex() {

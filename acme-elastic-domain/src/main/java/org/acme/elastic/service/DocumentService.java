@@ -7,9 +7,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.IndexOperations;
@@ -20,6 +17,9 @@ import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.acme.elastic.model.DocumentModel;
 import org.acme.elastic.repository.DocumentRepository;
 import org.acme.elastic.util.ContentTypeHelper;
@@ -29,13 +29,13 @@ import org.acme.elastic.util.StringHelper;
 @Service
 @RequiredArgsConstructor
 public class DocumentService {
-    
+
     private final DocumentRepository documentRepository;
     private final ElasticsearchOperations elasticsearchOperations;
-    
+
     public DocumentModel saveDocument(MultipartFile file) throws IOException {
         String content = new String(file.getBytes());
-        
+
         DocumentModel document = new DocumentModel();
         document.setId(UUID.randomUUID().toString());
         document.setFileName(file.getOriginalFilename());
@@ -43,7 +43,7 @@ public class DocumentService {
         document.setFileSize(file.getSize());
         document.setContentType(ContentTypeHelper.resolveContentType(file));
         document.setUploadedAt(Instant.now());
-        
+
         log.info(
                 "Service: save document to Elasticsearch, id={}, fileName={}, uploadedAt={}",
                 document.getId(),
@@ -60,13 +60,12 @@ public class DocumentService {
             log.info("Service: find all skipped, weekly index does not exist yet");
             return List.of();
         }
-        List<DocumentModel> list =
-                StreamSupport.stream(
-                                documentRepository
-                                        .findAll(Sort.by(Sort.Direction.DESC, "uploadedAt"))
-                                        .spliterator(),
-                                false)
-                        .toList();
+        List<DocumentModel> list = StreamSupport.stream(
+                documentRepository
+                        .findAll(Sort.by(Sort.Direction.DESC, "uploadedAt"))
+                        .spliterator(),
+                false)
+                .toList();
         log.info("Service: find all complete, count={}", list.size());
         return list;
     }
@@ -91,8 +90,8 @@ public class DocumentService {
             return List.of();
         }
         log.info("Service: find documents by ids, requestedCount={}", ids.size());
-        List<DocumentModel> found =
-                StreamSupport.stream(documentRepository.findAllById(ids).spliterator(), false).toList();
+        List<DocumentModel> found = StreamSupport.stream(documentRepository.findAllById(ids).spliterator(), false)
+                .toList();
         log.info("Service: find by ids complete, foundCount={}", found.size());
         return found;
     }
@@ -112,10 +111,9 @@ public class DocumentService {
         Criteria criteria;
         if (byName && byType) {
             log.info("Service: search by fileName and contentType, fileName={}, contentType={}", name, type);
-            criteria =
-                    Criteria.where("fileName.keyword")
-                            .contains(name)
-                            .and(Criteria.where("contentType.keyword").contains(type));
+            criteria = Criteria.where("fileName.keyword")
+                    .contains(name)
+                    .and(Criteria.where("contentType.keyword").contains(type));
         } else if (byName) {
             log.info("Service: search by fileName, fragment={}", name);
             criteria = Criteria.where("fileName.keyword").contains(name);
@@ -123,8 +121,8 @@ public class DocumentService {
             log.info("Service: search by contentType, fragment={}", type);
             criteria = Criteria.where("contentType.keyword").contains(type);
         }
-        SearchHits<DocumentModel> hits =
-                elasticsearchOperations.search(new CriteriaQuery(criteria), DocumentModel.class);
+        SearchHits<DocumentModel> hits = elasticsearchOperations.search(new CriteriaQuery(criteria),
+                DocumentModel.class);
         List<DocumentModel> matches = hits.getSearchHits().stream().map(SearchHit::getContent).toList();
         log.info("Service: search complete, matchCount={}", matches.size());
         return matches;

@@ -1,6 +1,6 @@
 spring:
   application:
-    name: spring-elastic-consumer
+    name: ${SPRING_APPLICATION_NAME:spring-elastic-consumer}
   mvc:
     problemdetails:
       enabled: true
@@ -8,18 +8,18 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      timeout: 2s
+      timeout: ${REDIS_TIMEOUT:2s}
   cache:
-    type: redis
+    type: ${SPRING_CACHE_TYPE:redis}
 
 server:
-  port: 8883
+  port: ${SERVER_PORT:8883}
 
 springdoc:
   api-docs:
-    path: /v3/api-docs
+    path: ${SPRINGDOC_API_DOCS_PATH:/v3/api-docs}
   swagger-ui:
-    path: /swagger-ui.html
+    path: ${SPRINGDOC_SWAGGER_UI_PATH:/swagger-ui.html}
     tags-sorter: alpha
     display-request-duration: true
     doc-expansion: list
@@ -28,21 +28,21 @@ springdoc:
     persist-authorization: true
 
 elastic-api:
-  base-url: http://localhost:8885
+  base-url: ${ELASTIC_API_BASE_URL:http://localhost:8885}
 
 app:
   cache:
-    default-ttl: PT5M
+    default-ttl: ${APP_CACHE_DEFAULT_TTL:PT5M}
     ttl-by-name:
-      documentsList: PT1M
-      documentsByIds: PT2M
-      documentsSearch: PT2M
-      documentById: PT10M
-      productsList: PT1M
-      productsByCategory: PT2M
-      categoryProductIds: PT2M
-      productById: PT10M
+      documentsList: ${APP_CACHE_TTL_DOCUMENTS_LIST:PT1M}
+      documentsByIds: ${APP_CACHE_TTL_DOCUMENTS_BY_IDS:PT2M}
+      documentsSearch: ${APP_CACHE_TTL_DOCUMENTS_SEARCH:PT2M}
+      documentById: ${APP_CACHE_TTL_DOCUMENT_BY_ID:PT10M}
+      productsList: ${APP_CACHE_TTL_PRODUCTS_LIST:PT1M}
+      productsByCategory: ${APP_CACHE_TTL_PRODUCTS_BY_CATEGORY:PT2M}
+      categoryProductIds: ${APP_CACHE_TTL_CATEGORY_PRODUCT_IDS:PT2M}
+      productById: ${APP_CACHE_TTL_PRODUCT_BY_ID:PT10M}
 
 logging:
   level:
-    org.acme.elastic.consumer: DEBUG
+    org.acme.elastic.consumer: ${LOGGING_LEVEL_ORG_ACME_ELASTIC_CONSUMER:DEBUG}

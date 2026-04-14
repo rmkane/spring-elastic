@@ -16,8 +16,9 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
- * Redis cache for gateway responses. JDK serialization avoids Jackson typing issues with {@code List} /
- * {@code Map} roots while DTOs remain simple records.
+ * Redis cache for gateway responses. JDK serialization avoids Jackson typing
+ * issues with {@code List} / {@code Map} roots while DTOs remain simple
+ * records.
  */
 @Configuration
 @EnableCaching
@@ -28,15 +29,14 @@ public class RedisCacheConfig {
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory, AppCacheProperties cacheProperties) {
         JdkSerializationRedisSerializer valueSerializer = new JdkSerializationRedisSerializer();
 
-        RedisCacheConfiguration defaults =
-                RedisCacheConfiguration.defaultCacheConfig()
-                        .prefixCacheNameWith("consumer::")
-                        .entryTtl(cacheProperties.getDefaultTtl())
-                        .disableCachingNullValues()
-                        .serializeKeysWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                        .serializeValuesWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(valueSerializer));
+        RedisCacheConfiguration defaults = RedisCacheConfiguration.defaultCacheConfig()
+                .prefixCacheNameWith("consumer::")
+                .entryTtl(cacheProperties.getDefaultTtl())
+                .disableCachingNullValues()
+                .serializeKeysWith(
+                        RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(
+                        RedisSerializationContext.SerializationPair.fromSerializer(valueSerializer));
 
         Map<String, RedisCacheConfiguration> perCache = new HashMap<>();
         cacheProperties.getTtlByName().forEach((name, ttl) -> perCache.put(name, defaults.entryTtl(ttl)));

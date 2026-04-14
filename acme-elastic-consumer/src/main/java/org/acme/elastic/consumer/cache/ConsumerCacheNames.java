@@ -1,9 +1,12 @@
 package org.acme.elastic.consumer.cache;
 
-import lombok.NoArgsConstructor;
 import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
-/** Redis cache regions for the consumer gateway; TTL via {@code app.cache.ttl-by-name}. */
+/**
+ * Redis cache regions for the consumer gateway; TTL via
+ * {@code app.cache.ttl-by-name}.
+ */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class ConsumerCacheNames {
 

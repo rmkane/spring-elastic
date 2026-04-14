@@ -13,15 +13,13 @@ class ContentTypeHelperTest {
 
     @Test
     void resolveContentType_specificDeclared_unchanged() {
-        MultipartFile file =
-                new MockMultipartFile("file", "ignored.bin", "application/pdf", new byte[0]);
+        MultipartFile file = new MockMultipartFile("file", "ignored.bin", "application/pdf", new byte[0]);
         assertEquals("application/pdf", ContentTypeHelper.resolveContentType(file));
     }
 
     @Test
     void resolveContentType_textPlainDeclared_unchanged() {
-        MultipartFile file =
-                new MockMultipartFile("file", "notes.txt", MediaType.TEXT_PLAIN_VALUE, new byte[0]);
+        MultipartFile file = new MockMultipartFile("file", "notes.txt", MediaType.TEXT_PLAIN_VALUE, new byte[0]);
         assertEquals(MediaType.TEXT_PLAIN_VALUE, ContentTypeHelper.resolveContentType(file));
     }
 
@@ -29,8 +27,8 @@ class ContentTypeHelperTest {
     void resolveContentType_octetStream_usesFilenameGuess() {
         String filename = "document.json";
         String expected = URLConnection.guessContentTypeFromName(filename);
-        MultipartFile file =
-                new MockMultipartFile("file", filename, MediaType.APPLICATION_OCTET_STREAM_VALUE, new byte[0]);
+        MultipartFile file = new MockMultipartFile("file", filename, MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                new byte[0]);
         assertEquals(expected, ContentTypeHelper.resolveContentType(file));
     }
 
@@ -38,14 +36,15 @@ class ContentTypeHelperTest {
     void resolveContentType_octetStream_txt_guessesTextPlain() {
         String filename = "readme.txt";
         String expected = URLConnection.guessContentTypeFromName(filename);
-        MultipartFile file =
-                new MockMultipartFile("file", filename, MediaType.APPLICATION_OCTET_STREAM_VALUE, new byte[0]);
+        MultipartFile file = new MockMultipartFile("file", filename, MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                new byte[0]);
         assertEquals(expected, ContentTypeHelper.resolveContentType(file));
     }
 
     @Test
     void resolveContentType_noGuess_fallsBackToDeclaredOctetStream() {
-        MultipartFile file = new MockMultipartFile("file", "x.unknown-ext-xyz", MediaType.APPLICATION_OCTET_STREAM_VALUE, new byte[0]);
+        MultipartFile file = new MockMultipartFile("file", "x.unknown-ext-xyz",
+                MediaType.APPLICATION_OCTET_STREAM_VALUE, new byte[0]);
         assertEquals(MediaType.APPLICATION_OCTET_STREAM_VALUE, ContentTypeHelper.resolveContentType(file));
     }
 

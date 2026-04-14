@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:acme-artemis-consumer}
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8886}
+
+acme:
+  artemis:
+    enabled: ${ACME_ARTEMIS_ENABLED}
+    broker-url: ${ACME_ARTEMIS_BROKER_URL}
+    user: ${ACME_ARTEMIS_USER}
+    password: ${ACME_ARTEMIS_PASSWORD}
+    client-id: ${ACME_ARTEMIS_CLIENT_ID:}
+    session-cache-size: ${ACME_ARTEMIS_SESSION_CACHE_SIZE:10}
+    concurrency: ${ACME_ARTEMIS_CONCURRENCY:1-3}
+  jms:
+    demo-queue: ${ACME_JMS_DEMO_QUEUE:acme.demo.queue}
+
+logging:
+  level:
+    org.acme.artemis: ${LOGGING_LEVEL_ORG_ACME_ARTEMIS:INFO}

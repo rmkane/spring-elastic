@@ -1,33 +1,33 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Script to check Elasticsearch cluster health
 # Usage: ./scripts/check-health.sh
+#
+# Requires exported env (e.g. source acme-infra/acme-dev-env.sh): ES_URIS, ES_USERNAME,
+# ES_PASSWORD, ES_CERT_PATH. This script does not set defaults or read password files.
 
 set -e
 
-# Load environment variables with defaults
-ES_URIS="${ES_URIS:-https://localhost:9200}"
-ES_USERNAME="${ES_USERNAME:-elastic}"
-ES_PASSWORD="${ES_PASSWORD:-}"
-ES_CERT_PATH="${ES_CERT_PATH:-}"
-
-if [ -z "$ES_PASSWORD" ]; then
-    if [ -f ".es_password" ]; then
-        ES_PASSWORD=$(cat .es_password)
-    else
-        echo "Error: ES_PASSWORD not set and .es_password file not found"
-        echo "Set ES_PASSWORD environment variable or run 'make es-setup'"
+require_env() {
+    local _n="$1"
+    if [ -z "${!_n:-}" ]; then
+        echo "Error: ${_n} is not set. Export it first (e.g. source acme-infra/acme-dev-env.sh)." >&2
         exit 1
     fi
-fi
+}
+
+require_env ES_URIS
+require_env ES_USERNAME
+require_env ES_PASSWORD
+require_env ES_CERT_PATH
 
 # Build curl command
 CURL_CMD="curl -s -u ${ES_USERNAME}:${ES_PASSWORD}"
 
-# Add certificate if provided
-if [ -n "$ES_CERT_PATH" ] && [ -f "$ES_CERT_PATH" ]; then
+if [ -f "$ES_CERT_PATH" ]; then
     CURL_CMD="${CURL_CMD} --cacert ${ES_CERT_PATH}"
 else
+    echo "Warning: ES_CERT_PATH file not found (${ES_CERT_PATH}); using curl -k" >&2
     CURL_CMD="${CURL_CMD} -k"
 fi
 
@@ -45,4 +45,3 @@ else
     echo "$HEALTH_RESPONSE"
     exit 1
 fi
-

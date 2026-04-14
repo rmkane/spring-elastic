@@ -23,17 +23,21 @@ import org.springframework.util.StringUtils;
 
 @Configuration
 public class ElasticsearchConfig extends ElasticsearchConfiguration {
-    
+
     @Value("${spring.data.elasticsearch.uris:https://localhost:9200}")
     private String uris;
-    
+
     @Value("${spring.data.elasticsearch.username:elastic}")
     private String username;
-    
+
     @Value("${spring.data.elasticsearch.password:}")
     private String password;
-    
-    @Value("${ES_CERT_PATH:}")
+
+    /**
+     * PEM CA path; set via {@code acme.elastic.cert-path} (typically
+     * {@code ${ES_CERT_PATH}} in YAML).
+     */
+    @Value("${acme.elastic.cert-path:}")
     private String certificatePath;
 
     @Override
@@ -41,44 +45,50 @@ public class ElasticsearchConfig extends ElasticsearchConfiguration {
         String[] hosts = Arrays.stream(uris.split(","))
                 .map(this::stripScheme)
                 .toArray(String[]::new);
-        
+
         ClientConfiguration.MaybeSecureClientConfigurationBuilder builder = ClientConfiguration.builder()
                 .connectedTo(hosts);
-        
+
         // Configure SSL - always use SSL for HTTPS connections
         if (uris.startsWith("https://")) {
             try {
                 SSLContext sslContext;
-                
+
                 if (StringUtils.hasText(certificatePath) && Files.exists(Paths.get(certificatePath))) {
                     // Use provided certificate
                     CertificateFactory factory = CertificateFactory.getInstance("X.509");
                     try (FileInputStream fis = new FileInputStream(certificatePath)) {
                         Certificate cert = factory.generateCertificate(fis);
-                        
+
                         KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
                         trustStore.load(null, null);
                         trustStore.setCertificateEntry("ca", cert);
-                        
+
                         TrustManagerFactory tmf = TrustManagerFactory.getInstance(
-                            TrustManagerFactory.getDefaultAlgorithm());
+                                TrustManagerFactory.getDefaultAlgorithm());
                         tmf.init(trustStore);
-                        
+
                         sslContext = SSLContext.getInstance("TLS");
                         sslContext.init(null, tmf.getTrustManagers(), null);
                     }
                 } else {
                     // Trust all certificates (for development)
                     sslContext = SSLContext.getInstance("TLS");
-                    sslContext.init(null, new TrustManager[]{
-                        new X509TrustManager() {
-                            public X509Certificate[] getAcceptedIssuers() { return null; }
-                            public void checkClientTrusted(X509Certificate[] certs, String authType) { }
-                            public void checkServerTrusted(X509Certificate[] certs, String authType) { }
-                        }
+                    sslContext.init(null, new TrustManager[] {
+                            new X509TrustManager() {
+                                public X509Certificate[] getAcceptedIssuers() {
+                                    return null;
+                                }
+
+                                public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                                }
+
+                                public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                                }
+                            }
                     }, new SecureRandom());
                 }
-                
+
                 return builder.usingSsl(sslContext)
                         .withBasicAuth(username, password)
                         .build();
@@ -86,7 +96,7 @@ public class ElasticsearchConfig extends ElasticsearchConfiguration {
                 throw new RuntimeException("Failed to configure SSL for Elasticsearch", e);
             }
         }
-        
+
         return builder.withBasicAuth(username, password).build();
     }
 
@@ -94,4 +104,3 @@ public class ElasticsearchConfig extends ElasticsearchConfiguration {
         return uri.replace("https://", "").replace("http://", "").trim();
     }
 }
-

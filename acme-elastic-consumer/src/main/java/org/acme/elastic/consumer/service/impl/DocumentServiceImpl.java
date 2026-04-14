@@ -3,8 +3,6 @@ package org.acme.elastic.consumer.service.impl;
 import java.io.IOException;
 import java.util.List;
 
-import lombok.RequiredArgsConstructor;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -14,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
+import lombok.RequiredArgsConstructor;
 
 import org.acme.elastic.consumer.cache.ConsumerCacheNames;
 import org.acme.elastic.consumer.client.ElasticUpstreamRestClient;
@@ -47,9 +47,7 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
-    @Cacheable(
-            cacheNames = ConsumerCacheNames.DOCUMENTS_SEARCH,
-            key = "T(org.acme.elastic.consumer.cache.ConsumerCacheKeys).searchDocuments(#fileName, #contentType)")
+    @Cacheable(cacheNames = ConsumerCacheNames.DOCUMENTS_SEARCH, key = "T(org.acme.elastic.consumer.cache.ConsumerCacheKeys).searchDocuments(#fileName, #contentType)")
     public List<DocumentJson> searchDocuments(String fileName, String contentType) {
         return rest.searchDocuments(fileName, contentType);
     }
@@ -70,25 +68,23 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
-    @Caching(
-            evict = {
-                @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENT_BY_ID, allEntries = true),
-                @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_LIST, allEntries = true),
-                @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_BY_IDS, allEntries = true),
-                @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_SEARCH, allEntries = true)
-            })
+    @Caching(evict = {
+            @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENT_BY_ID, allEntries = true),
+            @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_LIST, allEntries = true),
+            @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_BY_IDS, allEntries = true),
+            @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_SEARCH, allEntries = true)
+    })
     public ResponseEntity<DocumentJson> uploadDocument(MultipartFile file) throws IOException {
         return rest.uploadDocument(file);
     }
 
     @Override
-    @Caching(
-            evict = {
-                @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENT_BY_ID, allEntries = true),
-                @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_LIST, allEntries = true),
-                @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_BY_IDS, allEntries = true),
-                @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_SEARCH, allEntries = true)
-            })
+    @Caching(evict = {
+            @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENT_BY_ID, allEntries = true),
+            @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_LIST, allEntries = true),
+            @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_BY_IDS, allEntries = true),
+            @CacheEvict(cacheNames = ConsumerCacheNames.DOCUMENTS_SEARCH, allEntries = true)
+    })
     public ResponseEntity<Void> purgeDocumentsIndex() {
         return rest.purgeDocumentsIndex();
     }

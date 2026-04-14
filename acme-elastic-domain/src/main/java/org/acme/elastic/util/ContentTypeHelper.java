@@ -2,20 +2,24 @@ package org.acme.elastic.util;
 
 import java.net.URLConnection;
 
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
-
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-/** Resolves a stored content type from multipart uploads when clients omit or genericize the type. */
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
+/**
+ * Resolves a stored content type from multipart uploads when clients omit or
+ * genericize the type.
+ */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ContentTypeHelper {
 
     /**
-     * Multipart clients often send {@code application/octet-stream} or omit the part Content-Type. Prefer the
-     * declared type when it is specific; otherwise guess from the original filename (see
+     * Multipart clients often send {@code application/octet-stream} or omit the
+     * part Content-Type. Prefer the declared type when it is specific; otherwise
+     * guess from the original filename (see
      * {@link URLConnection#guessContentTypeFromName}).
      */
     public static String resolveContentType(MultipartFile file) {

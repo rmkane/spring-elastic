@@ -11,8 +11,6 @@ import java.util.stream.Collectors;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.context.NoSuchMessageException;
@@ -23,15 +21,17 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
 import org.springframework.validation.FieldError;
+import org.springframework.validation.method.ParameterErrors;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
-import org.springframework.validation.method.ParameterErrors;
-import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestControllerAdvice
@@ -75,12 +75,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpHeaders headers,
             HttpStatusCode status,
             WebRequest request) {
-        List<Map<String, String>> fieldErrors =
-                ex.getBindingResult().getFieldErrors().stream().map(this::toFieldErrorEntry).toList();
-        String message =
-                ex.getBindingResult().getFieldErrors().stream()
-                        .map(fe -> fe.getField() + ": " + Objects.toString(fe.getDefaultMessage(), "invalid"))
-                        .collect(Collectors.joining("; "));
+        List<Map<String, String>> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
+                .map(this::toFieldErrorEntry).toList();
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(fe -> fe.getField() + ": " + Objects.toString(fe.getDefaultMessage(), "invalid"))
+                .collect(Collectors.joining("; "));
         if (message.isEmpty()) {
             message = "Validation failed";
         }
@@ -116,11 +115,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex, WebRequest request) {
-        String message =
-                ex.getConstraintViolations().stream()
-                        .map(v -> v.getPropertyPath() + ": " + v.getMessage())
-                        .collect(Collectors.joining("; "));
+    public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex,
+            WebRequest request) {
+        String message = ex.getConstraintViolations().stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                .collect(Collectors.joining("; "));
         ProblemDetail problemDetail = createProblemDetail(ex, HttpStatus.BAD_REQUEST, message, null, null, request);
         problemDetail.setTitle("Validation failed");
         return ResponseEntity.badRequest().body(problemDetail);
@@ -129,9 +128,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleUnhandled(Exception ex, WebRequest request) {
         log.error("Unhandled exception", ex);
-        ProblemDetail problemDetail =
-                createProblemDetail(
-                        ex, HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", null, null, request);
+        ProblemDetail problemDetail = createProblemDetail(
+                ex, HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", null, null, request);
         problemDetail.setTitle("Internal error");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problemDetail);
     }

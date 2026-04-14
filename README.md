@@ -1,6 +1,8 @@
 # Spring Elastic Application
 
-Multi-module Maven project: **domain** (Elasticsearch models, repositories, services), **API** (REST on port **8885**, talks to Elasticsearch), and **consumer** (REST on port **8883**, HTTP client to the API). Uploads use a **weekly index** name. The API includes **OpenAPI (Swagger UI)**, **Logback** (under `logs/` in the API module), and **Makefile / Docker Compose** helpers for local Elasticsearch.
+Multi-module Maven project: **domain** (Elasticsearch models, repositories, services), **API** (REST on port **8885**, talks to Elasticsearch), and **consumer** (REST on port **8883**, HTTP client to the API). Uploads use a **weekly index** name. The API includes **OpenAPI (Swagger UI)** and **Logback** (under `logs/` in the API module).
+
+Shared **Docker Compose** and per-service **Makefiles** live under **`acme-infra/`**, which is **not** a Maven module—use it from this repo or copy/symlink it so several projects can start the same Elasticsearch, Redis, and optional Artemis containers. **`acme-infra/acme-dev-env.sh`** is a **demo** convenience (committed defaults for local Docker); production should use your own env and credentials.
 
 ## Features
 
@@ -15,38 +17,42 @@ Multi-module Maven project: **domain** (Elasticsearch models, repositories, serv
 
 - **Java 21** (see `pom.xml`)
 - **Maven 3.9+**
-- **Docker** and **Docker Compose** (for local Elasticsearch)
-- **Make** (optional, for convenience targets)
+- **Docker** and **Docker Compose** (for local Elasticsearch, Redis, optional Artemis)
+- **Make** (optional; wrappers in the repo root delegate to `acme-infra/*/Makefile`)
 
 ## Quick start
 
-### 1. Start Elasticsearch
+### 1. Start Elasticsearch (and optionally Redis / Artemis)
 
-Either use Make (wraps Docker Compose):
+From the **repository root** (thin wrappers):
 
 ```bash
 make es-setup
 ```
 
-That starts Elasticsearch, waits until it is ready, then writes **`es-certs/ca.crt`** and **`.es_password`** when applicable.
+That runs **`make -C acme-infra/elastic setup`**: starts Elasticsearch only, waits, then writes the CA to **`$HOME/.ssh/elastic-ca.crt`**. Use **`acme-dev-env.sh`** for **`ES_PASSWORD`** (default **`changeme`**, or match **`ELASTIC_PASSWORD`** in **`acme-infra/.env`**).
 
-Or start Compose yourself:
+From **any path** (e.g. another project that shares the same `acme-infra` checkout):
 
 ```bash
-docker compose up -d
+make -C /path/to/acme-infra/elastic setup
 ```
 
-With the default `docker-compose.yml`, the bootstrap password is often **`changeme`** unless you set **`ELASTIC_PASSWORD`** in a `.env` file.
+For **Redis** (consumer cache): `make redis-start` or `make -C acme-infra/redis start`. For **Artemis**: `make artemis-start` or `make -C acme-infra/artemis start`.
+
+Compose file: **`acme-infra/docker-compose.yml`**. Default Elasticsearch password is **`changeme`** unless you set **`ELASTIC_PASSWORD`** in **`acme-infra/.env`** (see **`acme-infra/.env.example`**). More detail: **`acme-infra/README.md`**.
 
 ### 2. Environment variables
 
-Set these before running the app (HTTPS to Elasticsearch):
+Easiest: **`source acme-infra/acme-dev-env.sh`** (see **`acme-infra/README.md`**). That sets **`ES_CERT_PATH`** to **`$HOME/.ssh/elastic-ca.crt`**, which **`make es-setup`** / **`make es-get-cert`** populate.
+
+Or set variables yourself before running the app:
 
 ```bash
 export ES_URIS=https://localhost:9200
 export ES_USERNAME=elastic
-export ES_PASSWORD=changeme   # or: export ES_PASSWORD=$(cat .es_password)
-export ES_CERT_PATH="$(pwd)/es-certs/ca.crt"
+export ES_PASSWORD=changeme   # or whatever you set as ELASTIC_PASSWORD for Compose
+export ES_CERT_PATH="$HOME/.ssh/elastic-ca.crt"
 ```
 
 If **`ES_CERT_PATH`** is missing or the file does not exist, the app uses a **trust-all** SSL context for development only.
@@ -54,7 +60,7 @@ If **`ES_CERT_PATH`** is missing or the file does not exist, the app uses a **tr
 ### 3. Run the Elasticsearch API
 
 ```bash
-mvn -pl spring-elastic-api spring-boot:run
+mvn -pl acme-elastic-api spring-boot:run
 # or
 make run-dev
 ```
@@ -66,12 +72,12 @@ API HTTP port: **8885**.
 In another terminal (API must be up on **8885**):
 
 ```bash
-mvn -pl spring-elastic-consumer spring-boot:run
+mvn -pl acme-elastic-consumer spring-boot:run
 # or
 make run-consumer
 ```
 
-Consumer port: **8883**. It exposes the same `/api/...` paths and forwards to the API. Override the upstream base URL with **`elastic-api.base-url`** (see `spring-elastic-consumer/src/main/resources/application.yml`).
+Consumer port: **8883**. It exposes the same `/api/...` paths and forwards to the API. Override the upstream base URL with **`elastic-api.base-url`** (see `acme-elastic-consumer/src/main/resources/application.yml`).
 
 ### 5. OpenAPI (Swagger UI)
 
@@ -133,15 +139,16 @@ After changing mappings (e.g. adding keyword fields), **purge the current index*
 - `make test` — `mvn test` (all modules)
 - `make build`, `make clean`, etc. — see `make help`
 
-### Elasticsearch (Docker Compose)
+### Shared containers (`acme-infra/`)
 
-- `make es-start` / `make es-stop` — start or stop the stack
-- `make es-setup` — start, wait, extract cert and password
-- `make es-get-cert`, `make es-get-password`, `make es-logs`, `make es-status`, `make es-clean`
+- `make infra-help` — points to per-service Makefiles
+- **Elasticsearch:** `make es-start` / `make es-stop`, `make es-setup`, `make es-get-cert`, `make es-logs`, `make es-status`, `make es-clean` (delegates to `acme-infra/elastic/`; CA file is **`~/.ssh/elastic-ca.crt`**)
+- **Redis:** `make redis-start` … `make redis-flush` (delegates to `acme-infra/redis/`)
+- **Artemis:** `make artemis-start` … `make artemis-status` (delegates to `acme-infra/artemis/`)
 
 ## Scripts
 
-Shell helpers (run from repo root; use **`ES_PASSWORD`** or **`.es_password`**; **`ES_CERT_PATH`** or `curl -k` behavior as implemented in each script):
+Shell helpers (run from repo root after **`source acme-infra/acme-dev-env.sh`** — they require **`ES_URIS`**, **`ES_USERNAME`**, **`ES_PASSWORD`**, and **`ES_CERT_PATH`** to already be exported; they do not invent defaults. If the PEM file is missing, they warn and use **`curl -k`**):
 
 - **`scripts/list-indices.sh`** — list indices (`-v` for table view)
 - **`scripts/check-index.sh <index-name>`** — index info, optional `--stats`, `--mapping`, `--all`
@@ -163,12 +170,12 @@ Use the index name that matches **your** current week (see **Index naming** abov
 | `ES_URIS` | Elasticsearch URLs | `https://localhost:9200` |
 | `ES_USERNAME` | Basic auth user | `elastic` |
 | `ES_PASSWORD` | Basic auth password | (empty in `application.yml`; required in practice) |
-| `ES_CERT_PATH` | PEM CA for TLS verify | (empty → trust-all in dev) |
+| `ES_CERT_PATH` | PEM CA for TLS verify | `acme-dev-env.sh` uses `$HOME/.ssh/elastic-ca.crt` (written by `make es-get-cert` / `es-setup`); missing file → trust-all in dev |
 | `LOG_PATH` | Logback file directory | `logs` |
 | `LOG_FILE_NAME` | Log file base name | `spring-elastic` |
 | `LOG_APP_LEVEL` | Log level for `org.acme.elastic` | `INFO` |
 
-API config: **`spring-elastic-api/src/main/resources/application.yml`**. Consumer config: **`spring-elastic-consumer/src/main/resources/application.yml`**. API logging: **`spring-elastic-api/src/main/resources/logback-spring.xml`** (console + daily rollover under **`logs/`**; that directory is gitignored).
+API config: **`acme-elastic-api/src/main/resources/application.yml`**. Consumer config: **`acme-elastic-consumer/src/main/resources/application.yml`**. API logging: **`acme-elastic-api/src/main/resources/logback-spring.xml`** (console + daily rollover under **`logs/`**; that directory is gitignored).
 
 ## Tests
 
@@ -182,14 +189,14 @@ Includes tests for **`StringHelper`** and **`ContentTypeHelper`**.
 
 ```none
 spring-elastic/
-├── pom.xml                         # parent (packaging pom)
-├── spring-elastic-domain/          # models, repositories, ES config, services, util, tests
-├── spring-elastic-api/             # Spring Boot :8885 — REST controllers, OpenAPI, logback
-├── spring-elastic-consumer/        # Spring Boot :8883 — RestClient gateway to API
+├── pom.xml                         # parent (packaging pom; modules only — no acme-infra)
+├── acme-elastic-domain/            # models, repositories, ES config, services, util, tests
+├── acme-elastic-api/              # Spring Boot :8885 — REST controllers, OpenAPI, logback
+├── acme-elastic-consumer/         # Spring Boot :8883 — RestClient gateway to API
+├── acme-infra/                     # Docker Compose + Makefiles (ES, Redis, Artemis) — not Maven
 ├── data/                           # sample files for manual upload tests
-├── docker-compose.yml              # local Elasticsearch
 ├── logs/                           # API runtime logs (gitignored)
 ├── scripts/                        # curl helpers for Elasticsearch
-├── Makefile
+├── Makefile                        # app + delegates to acme-infra/*
 └── README.md
 ```

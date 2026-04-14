@@ -10,8 +10,9 @@ import java.time.format.DateTimeParseException;
 import org.springframework.data.elasticsearch.core.mapping.PropertyValueConverter;
 
 /**
- * Reads date-only (yyyy-MM-dd), ISO instant, and offset datetimes into {@link Instant}. Spring Data's
- * default temporal converter does not accept date-only values for {@link Instant}.
+ * Reads date-only (yyyy-MM-dd), ISO instant, and offset datetimes into
+ * {@link Instant}. Spring Data's default temporal converter does not accept
+ * date-only values for {@link Instant}.
  */
 public class FlexibleInstantPropertyValueConverter implements PropertyValueConverter {
 
@@ -42,7 +43,8 @@ public class FlexibleInstantPropertyValueConverter implements PropertyValueConve
         if (to == null) {
             return null;
         }
-        // Full ISO-8601 instant so Elasticsearch stores wall-clock ordering (not date-only).
+        // Full ISO-8601 instant so Elasticsearch stores wall-clock ordering (not
+        // date-only).
         return DateTimeFormatter.ISO_INSTANT.format((Instant) to);
     }
 }

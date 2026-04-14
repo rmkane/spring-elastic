@@ -4,10 +4,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import org.springdoc.core.customizers.OpenApiCustomizer;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Paths;
@@ -18,10 +17,9 @@ import io.swagger.v3.oas.models.servers.Server;
 @Configuration
 public class OpenApiConfig {
 
-    private static final Comparator<String> PATH_KEY_ORDER =
-            Comparator.comparingInt(OpenApiConfig::pathGroup)
-                    .thenComparingInt(OpenApiConfig::pathRankInGroup)
-                    .thenComparing(Comparator.naturalOrder());
+    private static final Comparator<String> PATH_KEY_ORDER = Comparator.comparingInt(OpenApiConfig::pathGroup)
+            .thenComparingInt(OpenApiConfig::pathRankInGroup)
+            .thenComparing(Comparator.naturalOrder());
 
     @Bean
     public OpenApiCustomizer sortOpenApiPaths() {
@@ -53,22 +51,22 @@ public class OpenApiConfig {
     private static int pathRankInGroup(String path) {
         if (path.startsWith("/api/documents")) {
             return switch (path) {
-                case "/api/documents" -> 0;
-                case "/api/documents/by-ids" -> 1;
-                case "/api/documents/search" -> 2;
-                case "/api/documents/{id}" -> 3;
-                case "/api/documents/upload" -> 4;
-                case "/api/documents/index" -> 5;
-                default -> 50;
+            case "/api/documents" -> 0;
+            case "/api/documents/by-ids" -> 1;
+            case "/api/documents/search" -> 2;
+            case "/api/documents/{id}" -> 3;
+            case "/api/documents/upload" -> 4;
+            case "/api/documents/index" -> 5;
+            default -> 50;
             };
         }
         if (path.startsWith("/api/products")) {
             return switch (path) {
-                case "/api/products" -> 0;
-                case "/api/products/by-category" -> 1;
-                case "/api/products/category-product-ids" -> 2;
-                case "/api/products/{id}" -> 3;
-                default -> 50;
+            case "/api/products" -> 0;
+            case "/api/products/by-category" -> 1;
+            case "/api/products/category-product-ids" -> 2;
+            case "/api/products/{id}" -> 3;
+            default -> 50;
             };
         }
         return 0;

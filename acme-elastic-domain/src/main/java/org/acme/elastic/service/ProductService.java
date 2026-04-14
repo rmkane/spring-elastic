@@ -14,11 +14,11 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.acme.elastic.model.Product;
 import org.acme.elastic.repository.ProductRepository;
@@ -37,12 +37,12 @@ public class ProductService {
             log.info("Service: find all products skipped, index missing");
             return List.of();
         }
-        // Do not sort by "id" in the ES query: many indices lack a doc_values mapping for id, which
+        // Do not sort by "id" in the ES query: many indices lack a doc_values mapping
+        // for id, which
         // causes search_phase_execution_exception. Sort in memory instead.
-        List<Product> list =
-                StreamSupport.stream(productRepository.findAll().spliterator(), false)
-                        .sorted(Comparator.comparing(Product::getId, Comparator.nullsLast(String::compareTo)))
-                        .toList();
+        List<Product> list = StreamSupport.stream(productRepository.findAll().spliterator(), false)
+                .sorted(Comparator.comparing(Product::getId, Comparator.nullsLast(String::compareTo)))
+                .toList();
         log.info("Service: find all products, count={}", list.size());
         return list;
     }
@@ -98,27 +98,26 @@ public class ProductService {
     }
 
     /**
-     * For each requested category id, distinct product ids that reference that category. Map keys are sorted
-     * ({@link TreeMap}, natural {@link String} order after trim/dedupe); values are {@link TreeSet}s.
+     * For each requested category id, distinct product ids that reference that
+     * category. Map keys are sorted ({@link TreeMap}, natural {@link String} order
+     * after trim/dedupe); values are {@link TreeSet}s.
      */
     public Map<String, Set<String>> mapCategoryToProductIds(List<String> categoryIds) {
-        List<String> requested =
-                categoryIds.stream()
-                        .map(StringHelper::trimToNull)
-                        .filter(Objects::nonNull)
-                        .distinct()
-                        .toList();
+        List<String> requested = categoryIds.stream()
+                .map(StringHelper::trimToNull)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
         if (requested.isEmpty()) {
             return Map.of();
         }
-        Map<String, Set<String>> byCategory =
-                requested.stream()
-                        .collect(
-                                Collectors.toMap(
-                                        Function.identity(),
-                                        c -> new TreeSet<>(),
-                                        (a, b) -> a,
-                                        TreeMap::new));
+        Map<String, Set<String>> byCategory = requested.stream()
+                .collect(
+                        Collectors.toMap(
+                                Function.identity(),
+                                c -> new TreeSet<>(),
+                                (a, b) -> a,
+                                TreeMap::new));
         if (!productsIndexExists()) {
             log.info("Service: map category to product ids skipped, index missing");
             return byCategory;
